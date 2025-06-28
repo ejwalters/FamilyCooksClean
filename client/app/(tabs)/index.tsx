@@ -1,75 +1,153 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import CustomText from '../../components/CustomText';
+import { Ionicons } from '@expo/vector-icons';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const recentlyCooked = [
+  { title: 'Honey Garlic Chicken' },
+  { title: 'Homemade Chili' },
+  { title: 'Beef & Broccoli' },
+];
+const favorites = [
+  { title: 'Honey Garlic Chicken' },
+  { title: 'Homemade Chili' },
+  { title: 'Beef & Broccoli' },
+];
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
+      <View style={styles.header}>
         <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+          source={require('../../assets/images/avatar.png')}
+          style={styles.avatar}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <CustomText style={styles.logoText}>LOGO</CustomText>
+      </View>
+      <View style={styles.searchBarContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search Recipes"
+          placeholderTextColor="#888"
+        />
+        <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
+      </View>
+      <CustomText style={styles.sectionPrompt}>Stuck without a dinner plan?</CustomText>
+      <TouchableOpacity style={styles.aiChefButton}>
+        <CustomText style={styles.aiChefButtonText}>Ask The AI Chef</CustomText>
+      </TouchableOpacity>
+      <CustomText style={styles.sectionTitle}>Recently Cooked</CustomText>
+      <View style={styles.cardRow}>
+        {recentlyCooked.map((item, idx) => (
+          <View key={idx} style={[styles.card, styles.cardBlue]}>
+            <CustomText style={styles.cardText}>{item.title}</CustomText>
+          </View>
+        ))}
+      </View>
+      <CustomText style={styles.sectionTitle}>Favorites</CustomText>
+      <View style={styles.cardRow}>
+        {favorites.map((item, idx) => (
+          <View key={idx} style={[styles.card, styles.cardGold]}>
+            <CustomText style={styles.cardText}>{item.title}</CustomText>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#F1F6F9',
+    paddingHorizontal: 20,
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginTop: 32,
+    marginBottom: 16,
   },
-  stepContainer: {
-    gap: 8,
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 16,
+  },
+  logoText: {
+    fontSize: 28,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    height: 48,
+    shadowColor: 'transparent',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Nunito',
+    color: '#222',
+  },
+  searchIcon: {
+    marginLeft: 8,
+  },
+  sectionPrompt: {
+    fontSize: 15,
+    color: '#444',
     marginBottom: 8,
+    fontWeight: '400',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  aiChefButton: {
+    backgroundColor: '#6DA98C',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    marginBottom: 24,
+  },
+  aiChefButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#444',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    gap: 12,
+  },
+  card: {
+    flex: 1,
+    minWidth: 100,
+    minHeight: 80,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  cardBlue: {
+    backgroundColor: '#8CBEC7',
+  },
+  cardGold: {
+    backgroundColor: '#E2B36A',
+  },
+  cardText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

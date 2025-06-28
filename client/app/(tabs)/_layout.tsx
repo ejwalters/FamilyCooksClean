@@ -1,43 +1,102 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
-
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Image } from 'react-native';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        tabBarShowLabel: false,
+        tabBarStyle: {
+          height: 70,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          position: 'absolute',
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/home.png')}
+              style={{
+                width: 28,
+                height: 28,
+                tintColor: focused ? '#6DA98C' : '#B0B0B0',
+              }}
+              resizeMode="contain"
+            />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="recipes"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/recipes.png')}
+              style={{
+                width: 28,
+                height: 28,
+                tintColor: focused ? '#6DA98C' : '#B0B0B0',
+              }}
+              resizeMode="contain"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="chef"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/chef-hat.png')}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                borderWidth: focused ? 3 : 0,
+                borderColor: focused ? '#6DA98C' : 'transparent',
+                backgroundColor: '#F1F6F9',
+                marginTop: -20,
+              }}
+              resizeMode="contain"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="favorites"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/heart.png')}
+              style={{
+                width: 28,
+                height: 28,
+                tintColor: focused ? '#6DA98C' : '#B0B0B0',
+              }}
+              resizeMode="contain"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/profile.png')}
+              style={{
+                width: 28,
+                height: 28,
+                tintColor: focused ? '#6DA98C' : '#B0B0B0',
+              }}
+              resizeMode="contain"
+            />
+          ),
         }}
       />
     </Tabs>

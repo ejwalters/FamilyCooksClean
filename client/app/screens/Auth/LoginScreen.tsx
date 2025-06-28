@@ -9,19 +9,21 @@ import {
     ScrollView,
 } from 'react-native';
 import CustomText from '../../../components/CustomText';
+import { useRouter } from 'expo-router';
 
 const LoginScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const router = useRouter();
 
     const handleLogin = () => {
         // TODO: Add login functionality later
-        console.log('Login pressed');
+        // After successful login, navigate to the home page with nav bar
+        router.replace('/(tabs)');
     };
 
     const handleCreateAccount = () => {
-        // TODO: Add navigation to create account screen later
-        console.log('Create account pressed');
+        router.push('/screens/Auth/SignUpScreen');
     };
 
     return (
