@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Image } from 'react-native';
+import { Image, View } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -8,10 +8,22 @@ export default function TabLayout() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          height: 70,
+          height: 100,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
           position: 'absolute',
+          backgroundColor: '#fff',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          elevation: 10,
+        },
+        tabBarIconStyle: {
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100%',
+          marginTop: 0,
         },
       }}
     >
@@ -25,6 +37,7 @@ export default function TabLayout() {
                 width: 28,
                 height: 28,
                 tintColor: focused ? '#6DA98C' : '#B0B0B0',
+                alignSelf: 'center',
               }}
               resizeMode="contain"
             />
@@ -41,6 +54,7 @@ export default function TabLayout() {
                 width: 28,
                 height: 28,
                 tintColor: focused ? '#6DA98C' : '#B0B0B0',
+                alignSelf: 'center',
               }}
               resizeMode="contain"
             />
@@ -51,19 +65,35 @@ export default function TabLayout() {
         name="chef"
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/chef-hat.png')}
+            <View
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: 24,
+                width: 60,
+                height: 60,
+                borderRadius: 50,
                 borderWidth: focused ? 3 : 0,
                 borderColor: focused ? '#6DA98C' : 'transparent',
-                backgroundColor: '#F1F6F9',
-                marginTop: -20,
+                backgroundColor: '#6DA98C',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 4,
+                alignSelf: 'center',
+                justifyContent: 'center',
+                alignItems: 'center',
               }}
-              resizeMode="contain"
-            />
+            >
+              <Image
+                source={require('../../assets/images/chef-hat.png')}
+                style={{
+                  width: 32,
+                  height: 32,
+                  tintColor: '#fff',
+                  alignSelf: 'center',
+                }}
+                resizeMode="contain"
+              />
+            </View>
           ),
         }}
       />
@@ -77,6 +107,7 @@ export default function TabLayout() {
                 width: 28,
                 height: 28,
                 tintColor: focused ? '#6DA98C' : '#B0B0B0',
+                alignSelf: 'center',
               }}
               resizeMode="contain"
             />
@@ -93,6 +124,7 @@ export default function TabLayout() {
                 width: 28,
                 height: 28,
                 tintColor: focused ? '#6DA98C' : '#B0B0B0',
+                alignSelf: 'center',
               }}
               resizeMode="contain"
             />

@@ -65,12 +65,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 100,
     marginBottom: 16,
   },
   avatar: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     borderRadius: 24,
     marginRight: 16,
   },
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     marginBottom: 20,
-    height: 48,
+    height: 52,
     shadowColor: 'transparent',
   },
   searchInput: {
@@ -102,14 +102,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#444',
     marginBottom: 8,
-    fontWeight: '400',
+    fontWeight: '600',
   },
   aiChefButton: {
     backgroundColor: '#6DA98C',
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 48,
+    height: 50,
     marginBottom: 24,
   },
   aiChefButtonText: {
@@ -131,8 +131,8 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    minWidth: 100,
-    minHeight: 80,
+    minWidth: 130,
+    minHeight: 120,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
