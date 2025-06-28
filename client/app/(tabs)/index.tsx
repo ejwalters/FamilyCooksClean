@@ -37,21 +37,31 @@ export default function HomeScreen() {
         <CustomText style={styles.aiChefButtonText}>Ask The AI Chef</CustomText>
       </TouchableOpacity>
       <CustomText style={styles.sectionTitle}>Recently Cooked</CustomText>
-      <View style={styles.cardRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.cardRow}
+        style={styles.cardRowContainer}
+      >
         {recentlyCooked.map((item, idx) => (
           <View key={idx} style={[styles.card, styles.cardBlue]}>
             <CustomText style={styles.cardText}>{item.title}</CustomText>
           </View>
         ))}
-      </View>
+      </ScrollView>
       <CustomText style={styles.sectionTitle}>Favorites</CustomText>
-      <View style={styles.cardRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.cardRow}
+        style={styles.cardRowContainer}
+      >
         {favorites.map((item, idx) => (
           <View key={idx} style={[styles.card, styles.cardGold]}>
             <CustomText style={styles.cardText}>{item.title}</CustomText>
           </View>
         ))}
-      </View>
+      </ScrollView>
     </ScrollView>
   );
 }
@@ -124,14 +134,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 8,
   },
+  cardRowContainer: {
+    marginBottom: 20,
+    marginHorizontal: -20,
+  },
   cardRow: {
     flexDirection: 'row',
-    marginBottom: 20,
     gap: 12,
+    paddingHorizontal: 20,
   },
   card: {
-    flex: 1,
-    minWidth: 130,
+    width: 130,
     minHeight: 120,
     borderRadius: 16,
     justifyContent: 'center',
