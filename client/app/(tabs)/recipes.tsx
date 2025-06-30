@@ -3,6 +3,7 @@ import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image } 
 import { Ionicons } from '@expo/vector-icons'; // or your icon library
 import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
@@ -12,8 +13,20 @@ const recipes = Array(5).fill({
     ingredients: 6,
 });
 
+const TAB_BAR_HEIGHT = 90;
+
+function openAddRecipe() {
+    // Placeholder for add recipe action
+    alert('Add Recipe (to be implemented)');
+}
+
 export default function RecipesScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
+
+    function openAddRecipe() {
+        router.push('/add-recipe');
+    }
 
     return (
         <View style={styles.container}>
@@ -84,6 +97,16 @@ export default function RecipesScreen() {
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
             />
+
+            {/* Floating Add Recipe Button */}
+            <TouchableOpacity
+                style={[styles.fab, { bottom: insets.bottom + TAB_BAR_HEIGHT + 8 }]}
+                accessibilityLabel="Add Recipe"
+                onPress={openAddRecipe}
+                activeOpacity={0.8}
+            >
+                <Ionicons name="add" size={32} color="#fff" />
+            </TouchableOpacity>
         </View>
     );
 }
@@ -145,5 +168,21 @@ const styles = StyleSheet.create({
     heartIcon: {
         width: 24,
         height: 24,
+    },
+    fab: {
+        position: 'absolute',
+        right: 24,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#8CBEC7',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.18,
+        shadowRadius: 8,
+        elevation: 8,
+        zIndex: 100,
     },
 }); 

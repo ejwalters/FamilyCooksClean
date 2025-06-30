@@ -27,6 +27,26 @@ export default function ChatScreen() {
     const router = useRouter();
     const [message, setMessage] = useState('');
     const [allMessages, setAllMessages] = useState(messages);
+    // Example AI recipe suggestion (replace with real AI logic as needed)
+    const aiRecipe = {
+        title: 'Honey Garlic Chicken',
+        time: '15 min',
+        lastMade: '8 days ago',
+        tags: ['Kid Friendly', 'Healthy'],
+        ingredients: [
+            '1 lb. Chicken breast',
+            '1 lb. Chicken breast',
+            '1 lb. Chicken breast',
+            '1 lb. Chicken breast',
+            '1 lb. Chicken breast',
+        ],
+        steps: [
+            'Prepare the chicken breast',
+            'Prepare the chicken breast',
+            'Prepare the chicken breast',
+        ],
+        isAI: true,
+    };
 
     const sendMessage = () => {
         if (message.trim()) {
@@ -64,11 +84,23 @@ export default function ChatScreen() {
                         </View>
                     </View>
                 ))}
-                {/* Recipe Card */}
-                <View style={styles.recipeCard}>
+                {/* Recipe Card (AI suggestion) */}
+                <TouchableOpacity
+                    style={styles.recipeCard}
+                    onPress={() => {
+                        const params = {
+                            ...aiRecipe,
+                            isAI: '1',
+                            tags: Array.isArray(aiRecipe.tags) ? aiRecipe.tags.join('||') : aiRecipe.tags,
+                            ingredients: Array.isArray(aiRecipe.ingredients) ? aiRecipe.ingredients.join('||') : aiRecipe.ingredients,
+                            steps: Array.isArray(aiRecipe.steps) ? aiRecipe.steps.join('||') : aiRecipe.steps,
+                        };
+                        router.push({ pathname: '/recipe-detail', params });
+                    }}
+                >
                     <View style={{ flex: 1 }}>
                         <CustomText style={styles.recipeMeta}>Quick & Easy   •   25 min</CustomText>
-                        <CustomText style={styles.recipeTitle}>Honey Garlic Chicken</CustomText>
+                        <CustomText style={styles.recipeTitle}>{aiRecipe.title}</CustomText>
                         <CustomText style={styles.recipeDesc}>A flavorful and healthy dish ready in under 30 mins</CustomText>
                     </View>
                     <View style={styles.recipeIconBox}>
@@ -77,7 +109,7 @@ export default function ChatScreen() {
                             style={{ width: 32, height: 32, tintColor: '#fff' }}
                         />
                     </View>
-                </View>
+                </TouchableOpacity>
             </ScrollView>
             {/* Message Input */}
             <SafeAreaView edges={['bottom']} style={styles.safeAreaInput}>
@@ -92,8 +124,8 @@ export default function ChatScreen() {
                             multiline
                             maxLength={500}
                         />
-                        <TouchableOpacity 
-                            style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]} 
+                        <TouchableOpacity
+                            style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
                             onPress={sendMessage}
                             disabled={!message.trim()}
                         >
