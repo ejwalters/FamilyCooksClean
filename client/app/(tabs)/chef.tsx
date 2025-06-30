@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import CustomText from '../../components/CustomText';
 import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 const chatHistory = Array(8).fill({
     time: 'Today, 10:30PM',
@@ -9,11 +10,34 @@ const chatHistory = Array(8).fill({
 });
 
 export default function ChefScreen() {
+    const router = useRouter();
+    const startChatRef = useRef<any>(null);
+    const chatBtnRefs = useRef<any[]>([]);
+
+    // Helper to open chat with animation origin
+    const openChatFromRef = (ref: React.RefObject<any>) => {
+        if (ref.current) {
+            ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+                router.push({
+                    pathname: '/chat',
+                    params: {
+                        originX: x + width / 2,
+                        originY: y + height / 2,
+                        originWidth: width,
+                        originHeight: height,
+                        originRadius: 20, // match button borderRadius
+                    },
+                });
+            });
+        } else {
+            router.push('/chat');
+        }
+    };
+
     return (
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.headerRow}>
-
                 <CustomText style={styles.headerText}>AI Chef Chat History</CustomText>
             </View>
             {/* Search Bar */}
@@ -27,8 +51,9 @@ export default function ChefScreen() {
             </View>
             {/* Start New Chat Button */}
             <TouchableOpacity
+                ref={startChatRef}
                 style={styles.aiChefButton}
-                onPress={() => Alert.alert('Start New Chat', 'This will start a new chat with the chef.')}
+                onPress={() => openChatFromRef(startChatRef)}
             >
                 <CustomText style={styles.aiChefButtonText}>Start New Chat</CustomText>
             </TouchableOpacity>
@@ -36,17 +61,23 @@ export default function ChefScreen() {
             <FlatList
                 data={chatHistory}
                 keyExtractor={(_, idx) => idx.toString()}
-                renderItem={({ item }) => (
-                    <View style={styles.chatRow}>
-                        <View style={{ flex: 1 }}>
-                            <CustomText style={styles.chatTime}>{item.time}</CustomText>
-                            <CustomText style={styles.chatSummary}>Summary: {item.summary}</CustomText>
+                renderItem={({ item, index }) => {
+                    return (
+                        <View style={styles.chatRow}>
+                            <View style={{ flex: 1 }}>
+                                <CustomText style={styles.chatTime}>{item.time}</CustomText>
+                                <CustomText style={styles.chatSummary}>Summary: {item.summary}</CustomText>
+                            </View>
+                            <TouchableOpacity
+                                ref={el => { chatBtnRefs.current[index] = el; }}
+                                style={styles.chatIconButton}
+                                onPress={() => openChatFromRef(chatBtnRefs.current[index])}
+                            >
+                                <Image source={require('../../assets/images/chat.png')} style={styles.chatIconImage} />
+                            </TouchableOpacity>
                         </View>
-                        <TouchableOpacity style={styles.chatIconButton}>
-                            <Image source={require('../../assets/images/chat.png')} style={styles.chatIconImage} />
-                        </TouchableOpacity>
-                    </View>
-                )}
+                    );
+                }}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
             />
