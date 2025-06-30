@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomText from '../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
@@ -24,6 +25,22 @@ const messages = [
 
 export default function ChatScreen() {
     const router = useRouter();
+    const [message, setMessage] = useState('');
+    const [allMessages, setAllMessages] = useState(messages);
+
+    const sendMessage = () => {
+        if (message.trim()) {
+            const newMessage = {
+                sender: 'You',
+                text: message.trim(),
+                ai: false,
+            };
+            setAllMessages([...allMessages, newMessage]);
+            setMessage('');
+            // TODO: Add AI response logic here
+        }
+    };
+
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -36,10 +53,10 @@ export default function ChatScreen() {
             </View>
             {/* Chat Messages */}
             <ScrollView style={styles.messagesContainer} contentContainerStyle={{ paddingBottom: 24 }}>
-                {messages.map((msg, idx) => (
+                {allMessages.map((msg, idx) => (
                     <View key={idx} style={[styles.messageRow, msg.ai ? styles.aiRow : styles.userRow]}>
                         <Image
-                            source={msg.ai ? require('../assets/images/chef-hat.png') : require('../assets/images/avatar.png')}
+                            source={msg.ai ? require('../assets/images/ai-avatar.png') : require('../assets/images/avatar.png')}
                             style={styles.avatar}
                         />
                         <View style={[styles.bubble, msg.ai ? styles.aiBubble : styles.userBubble]}>
@@ -59,6 +76,29 @@ export default function ChatScreen() {
                     </View>
                 </View>
             </ScrollView>
+            {/* Message Input */}
+            <SafeAreaView edges={['bottom']} style={styles.safeAreaInput}>
+                <View style={styles.inputContainer}>
+                    <View style={styles.inputBox}>
+                        <TextInput
+                            style={styles.textInput}
+                            placeholder="Message the AI Chef..."
+                            placeholderTextColor="#717171"
+                            value={message}
+                            onChangeText={setMessage}
+                            multiline
+                            maxLength={500}
+                        />
+                        <TouchableOpacity 
+                            style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]} 
+                            onPress={sendMessage}
+                            disabled={!message.trim()}
+                        >
+                            <Ionicons name="send" size={18} color={message.trim() ? "#fff" : "#DDD"} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </SafeAreaView>
         </View>
     );
 }
@@ -69,7 +109,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
-        marginBottom: 12,
+        marginBottom: 40,
     },
     backButton: {
         marginRight: 8,
@@ -89,7 +129,7 @@ const styles = StyleSheet.create({
     messageRow: {
         flexDirection: 'row',
         alignItems: 'flex-end',
-        marginBottom: 16,
+        marginBottom: 40,
     },
     aiRow: {
         justifyContent: 'flex-start',
@@ -106,7 +146,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#eee',
     },
     bubble: {
-        maxWidth: '70%',
+        maxWidth: '80%',
         borderRadius: 16,
         padding: 12,
         marginHorizontal: 4,
@@ -164,5 +204,60 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: 16,
+    },
+    safeAreaInput: {
+        backgroundColor: 'transparent',
+    },
+    inputContainer: {
+        backgroundColor: 'transparent',
+        paddingHorizontal: 0,
+        paddingBottom: 16,
+        paddingTop: 0,
+        borderTopWidth: 0,
+        shadowColor: 'transparent',
+        elevation: 0,
+    },
+    inputBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        backgroundColor: '#fff',
+        borderRadius: 32,
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderWidth: 0,
+        marginHorizontal: 16,
+        marginBottom: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.10,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    textInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#222',
+        maxHeight: 120,
+        paddingVertical: 4,
+        lineHeight: 20,
+    },
+    sendButton: {
+        backgroundColor: '#FF385C',
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 12,
+        shadowColor: '#FF385C',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    sendButtonDisabled: {
+        backgroundColor: '#F7F7F7',
+        shadowOpacity: 0,
+        elevation: 0,
     },
 }); 
