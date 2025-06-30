@@ -2,8 +2,10 @@ import React from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomText from '../../components/CustomText';
+import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
+    const router = useRouter();
     return (
         <View style={styles.container}>
             {/* Header */}
@@ -24,27 +26,27 @@ export default function ProfileScreen() {
             </View>
 
             {/* Info Rows */}
-            <View style={styles.infoRow}>
+            <TouchableOpacity style={styles.infoRow} onPress={() => router.push('/edit-profile')}>
                 <View style={styles.infoIconBox}>
                     <Image source={require('../../assets/images/profile.png')} style={styles.infoIcon} />
                 </View>
                 <CustomText style={styles.infoText}>Personal Information</CustomText>
                 <Ionicons name="chevron-forward" size={24} color="#6C757D" style={styles.chevron} />
-            </View>
-            <View style={styles.infoRow}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.infoRow} onPress={() => router.push('/dietary-preferences')}>
                 <View style={styles.infoIconBox}>
                     <Image source={require('../../assets/images/fork-knife.png')} style={styles.infoIcon} />
                 </View>
                 <CustomText style={styles.infoText}>Dietary Information</CustomText>
                 <Ionicons name="chevron-forward" size={24} color="#6C757D" style={styles.chevron} />
-            </View>
-            <View style={styles.infoRow}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.infoRow} onPress={() => router.push('/subscription')}>
                 <View style={styles.infoIconBox}>
                     <Image source={require('../../assets/images/splash-icon.png')} style={styles.infoIcon} />
                 </View>
                 <CustomText style={styles.infoText}>Plan Information</CustomText>
                 <Ionicons name="chevron-forward" size={24} color="#6C757D" style={styles.chevron} />
-            </View>
+            </TouchableOpacity>
         </View>
     );
 }

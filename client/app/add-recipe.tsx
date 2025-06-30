@@ -23,11 +23,11 @@ export default function AddRecipeScreen() {
                     <CustomText style={styles.optionText}>Take a photo of a{"\n"}physical recipe card</CustomText>
                     <Ionicons name="camera-outline" size={36} color="#fff" style={styles.optionIcon} />
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.optionButton, styles.optionGold]}>
+                <TouchableOpacity style={[styles.optionButton, styles.optionGold]} onPress={() => router.push('/search-web-recipe')}>
                     <CustomText style={styles.optionText}>Search for a recipe{"\n"}on the web</CustomText>
                     <Ionicons name="search-outline" size={36} color="#fff" style={styles.optionIcon} />
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.optionButton, styles.optionGreen]}>
+                <TouchableOpacity style={[styles.optionButton, styles.optionGreen]} onPress={() => router.push('/add-recipe-manual')}>
                     <CustomText style={styles.optionText}>Add recipe{"\n"}manually</CustomText>
                     <Ionicons name="keypad-outline" size={36} color="#fff" style={styles.optionIcon} />
                 </TouchableOpacity>
