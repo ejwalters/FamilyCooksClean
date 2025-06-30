@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // or your icon library
 import CustomText from '../../components/CustomText';
+import { useRouter } from 'expo-router';
 
 const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
@@ -12,6 +13,8 @@ const recipes = Array(5).fill({
 });
 
 export default function RecipesScreen() {
+    const router = useRouter();
+
     return (
         <View style={styles.container}>
             {/* Header */}
@@ -51,32 +54,32 @@ export default function RecipesScreen() {
                 data={recipes}
                 keyExtractor={(_, idx) => idx.toString()}
                 renderItem={({ item }) => (
-                    <View style={styles.recipeCard}>
-                        <View style={styles.recipeIcon}>
-                            <Image
-                                source={require('../../assets/images/fork-knife.png')}
-                                style={styles.iconImage}
-                                resizeMode="contain"
-                            />
-                        </View>
-                        <View style={styles.recipeInfo}>
-                            <CustomText style={styles.recipeTitle}>{item.title}</CustomText>
-                            <View style={styles.recipeMeta}>
-                                <Ionicons name="time-outline" size={14} color="#6C757D" />
-                                <CustomText style={styles.recipeMetaText}>{item.time}</CustomText>
+                    <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: item })}>
+                        <View style={styles.recipeCard}>
+                            <View style={styles.recipeIcon}>
+                                <Image
+                                    source={require('../../assets/images/fork-knife.png')}
+                                    style={styles.iconImage}
+                                    resizeMode="contain"
+                                />
                             </View>
-                            <CustomText style={styles.recipeIngredients}>
-                                {item.ingredients} Ingredients
-                            </CustomText>
-                        </View>
-                        <TouchableOpacity>
+                            <View style={styles.recipeInfo}>
+                                <CustomText style={styles.recipeTitle}>{item.title}</CustomText>
+                                <View style={styles.recipeMeta}>
+                                    <Ionicons name="time-outline" size={14} color="#6C757D" />
+                                    <CustomText style={styles.recipeMetaText}>{item.time}</CustomText>
+                                </View>
+                                <CustomText style={styles.recipeIngredients}>
+                                    {item.ingredients} Ingredients
+                                </CustomText>
+                            </View>
                             <Image
                                 source={require('../../assets/images/heart.png')}
                                 style={styles.heartIcon}
                                 resizeMode="contain"
                             />
-                        </TouchableOpacity>
-                    </View>
+                        </View>
+                    </TouchableOpacity>
                 )}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
 import CustomText from '../../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 const recentlyCooked = [
   { title: 'Honey Garlic Chicken' },
@@ -15,6 +16,8 @@ const favorites = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
       <View style={styles.header}>
@@ -44,9 +47,9 @@ export default function HomeScreen() {
         style={styles.cardRowContainer}
       >
         {recentlyCooked.map((item, idx) => (
-          <View key={idx} style={[styles.card, styles.cardBlue]}>
+          <TouchableOpacity key={idx} onPress={() => router.push({ pathname: '/recipe-detail', params: item })} style={[styles.card, styles.cardBlue]}>
             <CustomText style={styles.cardText}>{item.title}</CustomText>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
       <CustomText style={styles.sectionTitle}>Favorites</CustomText>
@@ -57,9 +60,9 @@ export default function HomeScreen() {
         style={styles.cardRowContainer}
       >
         {favorites.map((item, idx) => (
-          <View key={idx} style={[styles.card, styles.cardGold]}>
+          <TouchableOpacity key={idx} onPress={() => router.push({ pathname: '/recipe-detail', params: item })} style={[styles.card, styles.cardGold]}>
             <CustomText style={styles.cardText}>{item.title}</CustomText>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </ScrollView>

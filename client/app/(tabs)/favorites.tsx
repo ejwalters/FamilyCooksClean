@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomText from '../../components/CustomText';
+import { useRouter } from 'expo-router';
 
 const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
@@ -12,6 +13,8 @@ const recipes = Array(5).fill({
 });
 
 export default function FavoritesScreen() {
+    const router = useRouter();
+
     return (
         <View style={styles.container}>
             {/* Header */}
@@ -69,7 +72,7 @@ export default function FavoritesScreen() {
                                 {item.ingredients} Ingredients
                             </CustomText>
                         </View>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: item })}>
                             <Image
                                 source={require('../../assets/images/heart.png')}
                                 style={styles.heartIcon}

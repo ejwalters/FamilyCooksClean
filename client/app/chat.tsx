@@ -72,7 +72,10 @@ export default function ChatScreen() {
                         <CustomText style={styles.recipeDesc}>A flavorful and healthy dish ready in under 30 mins</CustomText>
                     </View>
                     <View style={styles.recipeIconBox}>
-                        <Ionicons name="restaurant" size={32} color="#fff" />
+                        <Image
+                            source={require('../assets/images/fork-knife.png')}
+                            style={{ width: 32, height: 32, tintColor: '#fff' }}
+                        />
                     </View>
                 </View>
             </ScrollView>
