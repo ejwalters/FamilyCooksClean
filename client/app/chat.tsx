@@ -1,32 +1,33 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomText from '../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, Stack } from 'expo-router';
-
-const messages = [
-    {
-        sender: 'AI Chef',
-        text: "Hi there! I'm your AI Chef assistant. How can I help you today?",
-        ai: true,
-    },
-    {
-        sender: 'Eric',
-        text: "I'm looking for a quick and easy dinner recipe for tonight",
-        ai: false,
-    },
-    {
-        sender: 'AI Chef',
-        text: 'Sure! I can help with that. How about this delicious and simple recipe?',
-        ai: true,
-    },
-];
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 
 export default function ChatScreen() {
     const router = useRouter();
+    const { chat_id } = useLocalSearchParams();
     const [message, setMessage] = useState('');
-    const [allMessages, setAllMessages] = useState(messages);
+    const [allMessages, setAllMessages] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch messages for this chat on mount
+    useEffect(() => {
+        if (!chat_id) {
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        fetch(`https://familycooksclean.onrender.com/ai/messages?chat_id=${chat_id}`)
+            .then(res => res.json())
+            .then(data => {
+                setAllMessages(data);
+                setLoading(false);
+            })
+            .catch(() => setLoading(false));
+    }, [chat_id]);
+
     // Example AI recipe suggestion (replace with real AI logic as needed)
     const aiRecipe = {
         title: 'Honey Garlic Chicken',
@@ -61,6 +62,22 @@ export default function ChatScreen() {
         }
     };
 
+    if (loading) {
+        return (
+            <View style={styles.container}>
+                <ActivityIndicator size="large" color="#6DA98C" style={{ marginTop: 100 }} />
+            </View>
+        );
+    }
+
+    if (!chat_id) {
+        return (
+            <View style={styles.container}>
+                <CustomText style={{ marginTop: 100, textAlign: 'center' }}>Start a new chat to begin messaging the AI Chef.</CustomText>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -74,13 +91,13 @@ export default function ChatScreen() {
             {/* Chat Messages */}
             <ScrollView style={styles.messagesContainer} contentContainerStyle={{ paddingBottom: 24 }}>
                 {allMessages.map((msg, idx) => (
-                    <View key={idx} style={[styles.messageRow, msg.ai ? styles.aiRow : styles.userRow]}>
+                    <View key={idx} style={[styles.messageRow, msg.role === 'assistant' ? styles.aiRow : styles.userRow]}>
                         <Image
-                            source={msg.ai ? require('../assets/images/ai-avatar.png') : require('../assets/images/avatar.png')}
+                            source={msg.role === 'assistant' ? require('../assets/images/ai-avatar.png') : require('../assets/images/avatar.png')}
                             style={styles.avatar}
                         />
-                        <View style={[styles.bubble, msg.ai ? styles.aiBubble : styles.userBubble]}>
-                            <CustomText style={[styles.bubbleText, msg.ai ? styles.aiText : styles.userText]}>{msg.text}</CustomText>
+                        <View style={[styles.bubble, msg.role === 'assistant' ? styles.aiBubble : styles.userBubble]}>
+                            <CustomText style={[styles.bubbleText, msg.role === 'assistant' ? styles.aiText : styles.userText]}>{msg.content}</CustomText>
                         </View>
                     </View>
                 ))}

@@ -1,21 +1,44 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import CustomText from '../../components/CustomText';
-import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, Image, Alert } from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
-const chatHistory = Array(8).fill({
-    time: 'Today, 10:30PM',
-    summary: 'Stir Fry',
-});
+import { supabase } from '../../lib/supabase';
 
 export default function ChefScreen() {
     const router = useRouter();
     const startChatRef = useRef<any>(null);
     const chatBtnRefs = useRef<any[]>([]);
+    const [chats, setChats] = useState<{ id: string; created_at?: string; summary?: string }[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
+
+    // Fetch user ID on mount
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data, error }) => {
+            if (data?.user) {
+                setUserId(data.user.id);
+            } else {
+                setUserId(null);
+            }
+        });
+    }, []);
+
+    // Fetch chats when userId is available
+    useEffect(() => {
+        if (!userId) return;
+        setLoading(true);
+        fetch(`https://familycooksclean.onrender.com/ai/chats?user_id=${userId}`)
+            .then(res => res.json())
+            .then(data => {
+                setChats(data);
+                setLoading(false);
+            })
+            .catch(() => setLoading(false));
+    }, [userId]);
 
     // Helper to open chat with animation origin
-    const openChatFromRef = (ref: React.RefObject<any>) => {
+    const openChatFromRef = (ref: React.RefObject<any>, chatId?: string) => {
         if (ref.current) {
             ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
                 router.push({
@@ -26,13 +49,30 @@ export default function ChefScreen() {
                         originWidth: width,
                         originHeight: height,
                         originRadius: 20, // match button borderRadius
+                        chat_id: chatId,
                     },
                 });
             });
         } else {
-            router.push('/chat');
+            router.push({ pathname: '/chat', params: { chat_id: chatId } });
         }
     };
+
+    if (loading) {
+        return (
+            <View style={styles.container}>
+                <ActivityIndicator size="large" color="#6DA98C" style={{ marginTop: 100 }} />
+            </View>
+        );
+    }
+
+    if (!userId) {
+        return (
+            <View style={styles.container}>
+                <CustomText style={{ marginTop: 100, textAlign: 'center' }}>You must be logged in to view your AI Chef chats.</CustomText>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -59,19 +99,19 @@ export default function ChefScreen() {
             </TouchableOpacity>
             {/* Chat History List */}
             <FlatList
-                data={chatHistory}
-                keyExtractor={(_, idx) => idx.toString()}
+                data={chats}
+                keyExtractor={item => item.id}
                 renderItem={({ item, index }) => {
                     return (
                         <View style={styles.chatRow}>
                             <View style={{ flex: 1 }}>
-                                <CustomText style={styles.chatTime}>{item.time}</CustomText>
-                                <CustomText style={styles.chatSummary}>Summary: {item.summary}</CustomText>
+                                <CustomText style={styles.chatTime}>{item.created_at ? new Date(item.created_at).toLocaleString() : ''}</CustomText>
+                                <CustomText style={styles.chatSummary}>Summary: {item.summary || 'No summary'}</CustomText>
                             </View>
                             <TouchableOpacity
                                 ref={el => { chatBtnRefs.current[index] = el; }}
                                 style={styles.chatIconButton}
-                                onPress={() => openChatFromRef(chatBtnRefs.current[index])}
+                                onPress={() => openChatFromRef(chatBtnRefs.current[index], item.id)}
                             >
                                 <Image source={require('../../assets/images/chat.png')} style={styles.chatIconImage} />
                             </TouchableOpacity>
@@ -80,6 +120,7 @@ export default function ChefScreen() {
                 }}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
+                ListEmptyComponent={<CustomText style={{ textAlign: 'center', marginTop: 40 }}>No chats yet. Start a new chat!</CustomText>}
             />
         </View>
     );
