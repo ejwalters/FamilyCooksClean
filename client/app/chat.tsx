@@ -6,6 +6,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 
+// Helper to extract JSON from a string (handles code blocks and extra text)
+function extractJsonFromString(str: string) {
+    // Remove markdown code block if present
+    const cleaned = str.replace(/```(json)?/gi, '').replace(/```/g, '').trim();
+    // Try to find the first {...} block
+    const match = cleaned.match(/{[\s\S]*}/);
+    if (match) {
+        try {
+            return JSON.parse(match[0]);
+        } catch (e) {
+            return null;
+        }
+    }
+    // Fallback: try to parse the whole string
+    try {
+        return JSON.parse(cleaned);
+    } catch (e) {
+        return null;
+    }
+}
+
 export default function ChatScreen() {
     const router = useRouter();
     const { chat_id } = useLocalSearchParams();
@@ -34,32 +55,23 @@ export default function ChatScreen() {
         fetch(`https://familycooksclean.onrender.com/ai/messages?chat_id=${currentChatId}`)
             .then(res => res.json())
             .then(data => {
-                setAllMessages(data);
+                // Transform messages: if assistant message is valid recipe JSON, replace with [RECIPE_CARD]
+                const transformed = data.flatMap((msg: any) => {
+                    if (msg.role === 'assistant') {
+                        const maybeJson = extractJsonFromString(msg.content);
+                        if (maybeJson && maybeJson.is_recipe) {
+                            return [{ role: 'assistant', content: '[RECIPE_CARD]', recipe: maybeJson }];
+                        } else if (maybeJson && maybeJson.is_recipe === false && maybeJson.message) {
+                            return [{ role: 'assistant', content: maybeJson.message }];
+                        }
+                    }
+                    return [msg];
+                });
+                setAllMessages(transformed);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
     }, [currentChatId]);
-
-    // Example AI recipe suggestion (replace with real AI logic as needed)
-    const aiRecipe = {
-        title: 'Honey Garlic Chicken',
-        time: '15 min',
-        lastMade: '8 days ago',
-        tags: ['Kid Friendly', 'Healthy'],
-        ingredients: [
-            '1 lb. Chicken breast',
-            '1 lb. Chicken breast',
-            '1 lb. Chicken breast',
-            '1 lb. Chicken breast',
-            '1 lb. Chicken breast',
-        ],
-        steps: [
-            'Prepare the chicken breast',
-            'Prepare the chicken breast',
-            'Prepare the chicken breast',
-        ],
-        isAI: true,
-    };
 
     const sendMessage = async () => {
         if (!message.trim() || !userId) return;
@@ -84,12 +96,29 @@ export default function ChatScreen() {
                 if (!currentChatId && data.chat_id) {
                     setCurrentChatId(data.chat_id);
                 }
-                // Add user message and AI response to chat
+                // Add user message
                 setAllMessages(prev => [
                     ...prev,
-                    { role: 'user', content: message.trim() },
-                    { role: 'assistant', content: data.ai_response }
+                    { role: 'user', content: message.trim() }
                 ]);
+                // Robustly extract and parse JSON from AI response
+                const maybeJson = extractJsonFromString(data.ai_response);
+                if (maybeJson && maybeJson.is_recipe) {
+                    setAllMessages(prev => [
+                        ...prev,
+                        { role: 'assistant', content: '[RECIPE_CARD]', recipe: maybeJson }
+                    ]);
+                } else if (maybeJson && maybeJson.is_recipe === false && maybeJson.message) {
+                    setAllMessages(prev => [
+                        ...prev,
+                        { role: 'assistant', content: maybeJson.message }
+                    ]);
+                } else {
+                    setAllMessages(prev => [
+                        ...prev,
+                        { role: 'assistant', content: data.ai_response }
+                    ]);
+                }
                 setMessage('');
             } else {
                 alert(data.error || 'Failed to send message');
@@ -167,43 +196,49 @@ export default function ChatScreen() {
             </View>
             {/* Chat Messages */}
             <ScrollView style={styles.messagesContainer} contentContainerStyle={{ paddingBottom: 24 }}>
-                {allMessages.map((msg, idx) => (
-                    <View key={idx} style={[styles.messageRow, msg.role === 'assistant' ? styles.aiRow : styles.userRow]}>
-                        <Image
-                            source={msg.role === 'assistant' ? require('../assets/images/ai-avatar.png') : require('../assets/images/avatar.png')}
-                            style={styles.avatar}
-                        />
-                        <View style={[styles.bubble, msg.role === 'assistant' ? styles.aiBubble : styles.userBubble]}>
-                            <CustomText style={[styles.bubbleText, msg.role === 'assistant' ? styles.aiText : styles.userText]}>{msg.content}</CustomText>
+                {allMessages.map((msg, idx) => {
+                    if (msg.content === '[RECIPE_CARD]' && msg.recipe) {
+                        return (
+                            <TouchableOpacity
+                                key={idx}
+                                style={styles.recipeCard}
+                                onPress={() => {
+                                    const params = {
+                                        ...msg.recipe,
+                                        isAI: '1',
+                                        tags: Array.isArray(msg.recipe.tags) ? msg.recipe.tags.join('||') : msg.recipe.tags,
+                                        ingredients: Array.isArray(msg.recipe.ingredients) ? msg.recipe.ingredients.join('||') : msg.recipe.ingredients,
+                                        steps: Array.isArray(msg.recipe.steps) ? msg.recipe.steps.join('||') : msg.recipe.steps,
+                                    };
+                                    router.push({ pathname: '/recipe-detail', params });
+                                }}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <CustomText style={styles.recipeMeta}>{msg.recipe.tags?.join(', ')}   •   {msg.recipe.time}</CustomText>
+                                    <CustomText style={styles.recipeTitle}>{msg.recipe.name}</CustomText>
+                                    <CustomText style={styles.recipeDesc}>{msg.recipe.ingredients?.length} ingredients • {msg.recipe.steps?.length} steps</CustomText>
+                                </View>
+                                <View style={styles.recipeIconBox}>
+                                    <Image
+                                        source={require('../assets/images/fork-knife.png')}
+                                        style={{ width: 32, height: 32, tintColor: '#fff' }}
+                                    />
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    }
+                    return (
+                        <View key={idx} style={[styles.messageRow, msg.role === 'assistant' ? styles.aiRow : styles.userRow]}>
+                            <Image
+                                source={msg.role === 'assistant' ? require('../assets/images/ai-avatar.png') : require('../assets/images/avatar.png')}
+                                style={styles.avatar}
+                            />
+                            <View style={[styles.bubble, msg.role === 'assistant' ? styles.aiBubble : styles.userBubble]}>
+                                <CustomText style={[styles.bubbleText, msg.role === 'assistant' ? styles.aiText : styles.userText]}>{msg.content}</CustomText>
+                            </View>
                         </View>
-                    </View>
-                ))}
-                {/* Recipe Card (AI suggestion) */}
-                <TouchableOpacity
-                    style={styles.recipeCard}
-                    onPress={() => {
-                        const params = {
-                            ...aiRecipe,
-                            isAI: '1',
-                            tags: Array.isArray(aiRecipe.tags) ? aiRecipe.tags.join('||') : aiRecipe.tags,
-                            ingredients: Array.isArray(aiRecipe.ingredients) ? aiRecipe.ingredients.join('||') : aiRecipe.ingredients,
-                            steps: Array.isArray(aiRecipe.steps) ? aiRecipe.steps.join('||') : aiRecipe.steps,
-                        };
-                        router.push({ pathname: '/recipe-detail', params });
-                    }}
-                >
-                    <View style={{ flex: 1 }}>
-                        <CustomText style={styles.recipeMeta}>Quick & Easy   •   25 min</CustomText>
-                        <CustomText style={styles.recipeTitle}>{aiRecipe.title}</CustomText>
-                        <CustomText style={styles.recipeDesc}>A flavorful and healthy dish ready in under 30 mins</CustomText>
-                    </View>
-                    <View style={styles.recipeIconBox}>
-                        <Image
-                            source={require('../assets/images/fork-knife.png')}
-                            style={{ width: 32, height: 32, tintColor: '#fff' }}
-                        />
-                    </View>
-                </TouchableOpacity>
+                    );
+                })}
             </ScrollView>
             {/* Message Input */}
             <SafeAreaView edges={['bottom']} style={styles.safeAreaInput}>
