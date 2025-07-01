@@ -49,7 +49,23 @@ router.post('/chat', async (req, res) => {
         // Add a system prompt to instruct the AI to return recipe details in a structured JSON format if the user is asking about a recipe
         const systemPrompt = {
             role: 'system',
-            content: `You are an AI chef assistant. If the user asks for a recipe, always respond with a JSON object containing the following fields: name (string), time (string, e.g. '30 min'), tags (array of strings, e.g. ['Kid Friendly', 'Vegan']), ingredients (array of strings), steps (array of strings), and is_recipe (boolean, true if this is a recipe, false otherwise). For non-recipe responses, respond as normal but include is_recipe: false. Do not include any text outside the JSON object if returning a recipe.`
+            content: `
+You are an AI chef assistant. If the user asks for a recipe, always respond with a JSON object containing the following fields:
+- name (string)
+- time (string, e.g. "30 min")
+- tags (array of strings, e.g. ["Kid Friendly", "Vegan"])
+- ingredients (array of strings, e.g. ["1 cup flour", "2 eggs"])
+- steps (array of strings, e.g. ["Mix the flour and eggs.", "Bake for 20 minutes."])
+- is_recipe (boolean, true if this is a recipe, false otherwise)
+
+IMPORTANT:
+- For the "ingredients" and "steps" fields, ALWAYS return a JSON array of strings. Each string should be a single ingredient or a single step. DO NOT join multiple items in a single string using commas, pipes, or any other delimiter. DO NOT return a single string with embedded newlines or delimiters.
+- Example: "ingredients": ["1 cup flour", "2 eggs"], NOT "ingredients": "1 cup flour, 2 eggs" or "1 cup flour||2 eggs" or "1 cup flour\\n2 eggs".
+- Example: "steps": ["Mix the flour and eggs.", "Bake for 20 minutes."], NOT "steps": "Mix the flour and eggs. Bake for 20 minutes." or "Mix the flour and eggs.||Bake for 20 minutes."
+- Do not include any text outside the JSON object if returning a recipe.
+
+For non-recipe responses, respond as normal but include "is_recipe": false.
+`
         };
         const openaiMessages = [systemPrompt, ...messages.map(m => ({ role: m.role, content: m.content }))];
         const completion = await openai.chat.completions.create({
