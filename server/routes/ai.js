@@ -46,9 +46,15 @@ router.post('/chat', async (req, res) => {
 
     // 4. Call OpenAI API
     try {
+        // Add a system prompt to instruct the AI to return recipe details in a structured JSON format if the user is asking about a recipe
+        const systemPrompt = {
+            role: 'system',
+            content: `You are an AI chef assistant. If the user asks for a recipe, always respond with a JSON object containing the following fields: name (string), time (string, e.g. '30 min'), tags (array of strings, e.g. ['Kid Friendly', 'Vegan']), ingredients (array of strings), steps (array of strings), and is_recipe (boolean, true if this is a recipe, false otherwise). For non-recipe responses, respond as normal but include is_recipe: false. Do not include any text outside the JSON object if returning a recipe.`
+        };
+        const openaiMessages = [systemPrompt, ...messages.map(m => ({ role: m.role, content: m.content }))];
         const completion = await openai.chat.completions.create({
             model: 'gpt-4',
-            messages: messages.map(m => ({ role: m.role, content: m.content })),
+            messages: openaiMessages,
         });
         const aiResponse = completion.choices[0].message.content;
 
