@@ -19,4 +19,17 @@ router.post('/add', async (req, res) => {
     res.json(data);
 });
 
+// GET /recipes/list
+router.get('/list', async (req, res) => {
+    let { limit } = req.query;
+    limit = Math.min(parseInt(limit) || 20, 100);
+    const { data, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
 module.exports = router;
