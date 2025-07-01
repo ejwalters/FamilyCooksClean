@@ -1,28 +1,33 @@
-import React from 'react';
-import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // or your icon library
 import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
-const recipes = Array(5).fill({
-    title: 'Honey Garlic Chicken',
-    time: '15 min',
-    ingredients: 6,
-});
-
 const TAB_BAR_HEIGHT = 90;
-
-function openAddRecipe() {
-    // Placeholder for add recipe action
-    alert('Add Recipe (to be implemented)');
-}
 
 export default function RecipesScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const [recipes, setRecipes] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useFocusEffect(
+        useCallback(() => {
+            setLoading(true);
+            fetch('https://familycooksclean.onrender.com/recipes/list?limit=20')
+                .then(res => res.json())
+                .then(data => {
+                    setRecipes(data);
+                    setLoading(false);
+                })
+                .catch(() => setLoading(false));
+        }, [])
+    );
 
     function openAddRecipe() {
         router.push('/add-recipe');
@@ -63,40 +68,45 @@ export default function RecipesScreen() {
             <CustomText style={styles.sectionTitle}>Recipes</CustomText>
 
             {/* Recipes List */}
-            <FlatList
-                data={recipes}
-                keyExtractor={(_, idx) => idx.toString()}
-                renderItem={({ item }) => (
-                    <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: item })}>
-                        <View style={styles.recipeCard}>
-                            <View style={styles.recipeIcon}>
+            {loading ? (
+                <ActivityIndicator size="large" color="#6DA98C" style={{ marginTop: 40 }} />
+            ) : (
+                <FlatList
+                    data={recipes}
+                    keyExtractor={item => item.id}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: item })}>
+                            <View style={styles.recipeCard}>
+                                <View style={styles.recipeIcon}>
+                                    <Image
+                                        source={require('../../assets/images/fork-knife.png')}
+                                        style={styles.iconImage}
+                                        resizeMode="contain"
+                                    />
+                                </View>
+                                <View style={styles.recipeInfo}>
+                                    <CustomText style={styles.recipeTitle}>{item.title}</CustomText>
+                                    <View style={styles.recipeMeta}>
+                                        <Ionicons name="time-outline" size={14} color="#6C757D" />
+                                        <CustomText style={styles.recipeMetaText}>{item.time}</CustomText>
+                                    </View>
+                                    <CustomText style={styles.recipeIngredients}>
+                                        {item.ingredients?.length || 0} Ingredients
+                                    </CustomText>
+                                </View>
                                 <Image
-                                    source={require('../../assets/images/fork-knife.png')}
-                                    style={styles.iconImage}
+                                    source={require('../../assets/images/heart.png')}
+                                    style={styles.heartIcon}
                                     resizeMode="contain"
                                 />
                             </View>
-                            <View style={styles.recipeInfo}>
-                                <CustomText style={styles.recipeTitle}>{item.title}</CustomText>
-                                <View style={styles.recipeMeta}>
-                                    <Ionicons name="time-outline" size={14} color="#6C757D" />
-                                    <CustomText style={styles.recipeMetaText}>{item.time}</CustomText>
-                                </View>
-                                <CustomText style={styles.recipeIngredients}>
-                                    {item.ingredients} Ingredients
-                                </CustomText>
-                            </View>
-                            <Image
-                                source={require('../../assets/images/heart.png')}
-                                style={styles.heartIcon}
-                                resizeMode="contain"
-                            />
-                        </View>
-                    </TouchableOpacity>
-                )}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-            />
+                        </TouchableOpacity>
+                    )}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={<CustomText style={{ textAlign: 'center', marginTop: 40 }}>No recipes found.</CustomText>}
+                />
+            )}
 
             {/* Floating Add Recipe Button */}
             <TouchableOpacity
