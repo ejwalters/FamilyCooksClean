@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
-const { Configuration, OpenAIApi } = require('openai');
+const { OpenAI } = require('openai');
 
 // Setup Supabase
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // Setup OpenAI
-const openai = new OpenAIApi(new Configuration({ apiKey: process.env.OPENAI_API_KEY }));
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // POST /ai/chat
 router.post('/chat', async (req, res) => {
@@ -46,11 +46,11 @@ router.post('/chat', async (req, res) => {
 
     // 4. Call OpenAI API
     try {
-        const completion = await openai.createChatCompletion({
+        const completion = await openai.chat.completions.create({
             model: 'gpt-4',
             messages: messages.map(m => ({ role: m.role, content: m.content })),
         });
-        const aiResponse = completion.data.choices[0].message.content;
+        const aiResponse = completion.choices[0].message.content;
 
         // 5. Store AI response
         await supabase
