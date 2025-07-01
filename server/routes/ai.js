@@ -148,7 +148,7 @@ router.get('/messages', async (req, res) => {
 
 async function generateChatSummary(messages) {
     const prompt = `
-Summarize the following conversation in 1-2 sentences for a chat history list. Focus on the main topic, recipe, or user request. If the chat is mostly casual or contains no recipe, summarize the general theme.
+Summarize the following conversation in a few keywords for a chat history list. Focus on the main topic, recipe, or user request. If the chat is mostly casual or contains no recipe, summarize the general theme.
 
 ${messages.map(m => `${m.role}: ${m.content}`).join('\n')}
     `;
