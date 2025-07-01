@@ -27,6 +27,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="screens/Auth/SignUpScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="screens/Auth/LoginScreen" options={{ headerShown: false }} />
           <Stack.Screen name="screens/Auth/*" options={{ headerShown: false }} />
           <Stack.Screen name="chat" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
           <Stack.Screen name="recipe-detail" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />

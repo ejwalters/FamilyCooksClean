@@ -1,11 +1,22 @@
 import React from 'react';
-import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 export default function ProfileScreen() {
     const router = useRouter();
+
+    async function handleSignOut() {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            Alert.alert('Sign Out Failed', error.message);
+        } else {
+            router.replace('/screens/Auth/LoginScreen');
+        }
+    }
+
     return (
         <View style={styles.container}>
             {/* Header */}
@@ -47,6 +58,9 @@ export default function ProfileScreen() {
                 <CustomText style={styles.infoText}>Plan Information</CustomText>
                 <Ionicons name="chevron-forward" size={24} color="#6C757D" style={styles.chevron} />
             </TouchableOpacity>
+            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+                <CustomText style={styles.signOutButtonText}>Sign Out</CustomText>
+            </TouchableOpacity>
         </View>
     );
 }
@@ -82,4 +96,24 @@ const styles = StyleSheet.create({
     },
     infoText: { fontSize: 16, fontWeight: '600', color: '#444', flex: 1 },
     chevron: { marginLeft: 8 },
+    signOutButton: {
+        backgroundColor: '#FF385C',
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 48,
+        marginHorizontal: 16,
+        marginTop: 32,
+        marginBottom: 32,
+        shadowColor: '#FF385C',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.10,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    signOutButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+    },
 }); 

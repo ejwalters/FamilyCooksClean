@@ -7,19 +7,25 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    Alert,
 } from 'react-native';
 import CustomText from '../../../components/CustomText';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../../lib/supabase';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const LoginScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const router = useRouter();
 
-    const handleLogin = () => {
-        // TODO: Add login functionality later
-        // After successful login, navigate to the home page with nav bar
-        router.replace('/(tabs)');
+    const handleLogin = async () => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            Alert.alert('Login Failed', error.message);
+        } else {
+            router.replace('/(tabs)');
+        }
     };
 
     const handleCreateAccount = () => {
@@ -27,57 +33,59 @@ const LoginScreen = () => {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView
-                contentContainerStyle={styles.scrollContainer}
-                keyboardShouldPersistTaps="handled"
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F6F9' }}>
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
-                <View style={styles.formContainer}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Email"
-                        placeholderTextColor="#666"
-                        value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
+                <ScrollView
+                    contentContainerStyle={styles.scrollContainer}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View style={styles.formContainer}>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Email"
+                            placeholderTextColor="#666"
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Password"
-                        placeholderTextColor="#666"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Password"
+                            placeholderTextColor="#666"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
 
-                    <TouchableOpacity
-                        style={styles.loginButton}
-                        onPress={handleLogin}
-                        activeOpacity={0.8}
-                    >
-                        <CustomText style={styles.loginButtonText}>Log In</CustomText>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.loginButton}
+                            onPress={handleLogin}
+                            activeOpacity={0.8}
+                        >
+                            <CustomText style={styles.loginButtonText}>Log In</CustomText>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={styles.createAccountContainer}
-                        onPress={handleCreateAccount}
-                        activeOpacity={0.7}
-                    >
-                        <CustomText style={styles.createAccountText}>
-                            Don't have an account? Create one
-                        </CustomText>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                        <TouchableOpacity
+                            style={styles.createAccountContainer}
+                            onPress={handleCreateAccount}
+                            activeOpacity={0.7}
+                        >
+                            <CustomText style={styles.createAccountText}>
+                                Don't have an account? Create one
+                            </CustomText>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 };
 

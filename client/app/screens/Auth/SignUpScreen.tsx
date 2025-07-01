@@ -7,11 +7,13 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import CustomText from '../../../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../../../lib/supabase';
 
 const SignUpScreen = () => {
     const [fullName, setFullName] = useState('');
@@ -19,9 +21,13 @@ const SignUpScreen = () => {
     const [password, setPassword] = useState('');
     const router = useRouter();
 
-    const handleCreateAccount = () => {
-        // TODO: Add sign up functionality
-        console.log('Create Account pressed');
+    const handleCreateAccount = async () => {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+            Alert.alert('Sign Up Failed', error.message);
+        } else {
+            router.replace('/(tabs)');
+        }
     };
 
     const handleGoBack = () => {
