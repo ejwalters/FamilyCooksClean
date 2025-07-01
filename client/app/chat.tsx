@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomText from '../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
+import { supabase } from '../lib/supabase';
 
 export default function ChatScreen() {
     const router = useRouter();
@@ -11,22 +12,33 @@ export default function ChatScreen() {
     const [message, setMessage] = useState('');
     const [allMessages, setAllMessages] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
+    const [currentChatId, setCurrentChatId] = useState<string | null>(chat_id ? String(chat_id) : null);
+    const [sending, setSending] = useState(false);
+
+    // Fetch user ID on mount
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data?.user) setUserId(data.user.id);
+        });
+    }, []);
 
     // Fetch messages for this chat on mount
     useEffect(() => {
-        if (!chat_id) {
+        if (!currentChatId) {
+            setAllMessages([]);
             setLoading(false);
             return;
         }
         setLoading(true);
-        fetch(`https://familycooksclean.onrender.com/ai/messages?chat_id=${chat_id}`)
+        fetch(`https://familycooksclean.onrender.com/ai/messages?chat_id=${currentChatId}`)
             .then(res => res.json())
             .then(data => {
                 setAllMessages(data);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
-    }, [chat_id]);
+    }, [currentChatId]);
 
     // Example AI recipe suggestion (replace with real AI logic as needed)
     const aiRecipe = {
@@ -49,16 +61,43 @@ export default function ChatScreen() {
         isAI: true,
     };
 
-    const sendMessage = () => {
-        if (message.trim()) {
-            const newMessage = {
-                sender: 'You',
-                text: message.trim(),
-                ai: false,
+    const sendMessage = async () => {
+        if (!message.trim() || !userId) return;
+        setSending(true);
+        try {
+            // If no chat yet, create one and send first message
+            const payload: any = {
+                user_id: userId,
+                message: message.trim(),
             };
-            setAllMessages([...allMessages, newMessage]);
-            setMessage('');
-            // TODO: Add AI response logic here
+            if (currentChatId) {
+                payload.chat_id = currentChatId;
+            }
+            const res = await fetch('https://familycooksclean.onrender.com/ai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                // Update chat_id if new
+                if (!currentChatId && data.chat_id) {
+                    setCurrentChatId(data.chat_id);
+                }
+                // Add user message and AI response to chat
+                setAllMessages(prev => [
+                    ...prev,
+                    { role: 'user', content: message.trim() },
+                    { role: 'assistant', content: data.ai_response }
+                ]);
+                setMessage('');
+            } else {
+                alert(data.error || 'Failed to send message');
+            }
+        } catch (err) {
+            alert('Failed to send message');
+        } finally {
+            setSending(false);
         }
     };
 
@@ -70,10 +109,48 @@ export default function ChatScreen() {
         );
     }
 
-    if (!chat_id) {
+    if (!userId) {
         return (
             <View style={styles.container}>
+                <CustomText style={{ marginTop: 100, textAlign: 'center' }}>You must be logged in to chat with the AI Chef.</CustomText>
+            </View>
+        );
+    }
+
+    // If no chat or no messages, prompt to start chat
+    if (!currentChatId || allMessages.length === 0) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <View style={styles.headerRow}>
+                    <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                        <Ionicons name="arrow-back" size={26} color="#444" />
+                    </TouchableOpacity>
+                    <CustomText style={styles.headerText}>Ask the AI Chef</CustomText>
+                </View>
                 <CustomText style={{ marginTop: 100, textAlign: 'center' }}>Start a new chat to begin messaging the AI Chef.</CustomText>
+                <SafeAreaView edges={['bottom']} style={styles.safeAreaInput}>
+                    <View style={styles.inputContainer}>
+                        <View style={styles.inputBox}>
+                            <TextInput
+                                style={styles.textInput}
+                                placeholder="Message the AI Chef..."
+                                placeholderTextColor="#717171"
+                                value={message}
+                                onChangeText={setMessage}
+                                multiline
+                                maxLength={500}
+                            />
+                            <TouchableOpacity
+                                style={[styles.sendButton, (!message.trim() || sending) && styles.sendButtonDisabled]}
+                                onPress={sendMessage}
+                                disabled={!message.trim() || sending}
+                            >
+                                <Ionicons name="send" size={18} color={message.trim() ? "#fff" : "#DDD"} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </SafeAreaView>
             </View>
         );
     }
@@ -142,9 +219,9 @@ export default function ChatScreen() {
                             maxLength={500}
                         />
                         <TouchableOpacity
-                            style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
+                            style={[styles.sendButton, (!message.trim() || sending) && styles.sendButtonDisabled]}
                             onPress={sendMessage}
-                            disabled={!message.trim()}
+                            disabled={!message.trim() || sending}
                         >
                             <Ionicons name="send" size={18} color={message.trim() ? "#fff" : "#DDD"} />
                         </TouchableOpacity>
