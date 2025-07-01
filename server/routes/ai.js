@@ -74,6 +74,19 @@ For non-recipe responses, respond as normal but include "is_recipe": false.
         });
         const aiResponse = completion.choices[0].message.content;
 
+        // Debug: Log the raw AI response
+        console.log('Raw AI Response:', aiResponse);
+
+        // Try to parse and log the recipe object if possible
+        try {
+            const parsed = JSON.parse(aiResponse);
+            if (parsed && parsed.is_recipe) {
+                console.log('Parsed Recipe Object:', parsed);
+            }
+        } catch (e) {
+            console.log('AI response is not valid JSON:', e.message);
+        }
+
         // 5. Store AI response
         await supabase
             .from('messages')
