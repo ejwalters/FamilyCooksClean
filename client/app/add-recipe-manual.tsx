@@ -1,13 +1,31 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import CustomText from '../components/CustomText';
+import { supabase } from '../lib/supabase';
+
+// Helper to call backend
+async function addRecipeToServer({ user_id, title, time, tags, ingredients, steps }: { user_id: string; title: string; time: string; tags: string[]; ingredients: string[]; steps: string[] }) {
+    const response = await fetch('https://familycooksclean.onrender.com/recipes/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id, title, time, tags, ingredients, steps }),
+    });
+    if (!response.ok) throw new Error('Failed to add recipe');
+    return response.json();
+}
 
 export default function AddRecipeManualScreen() {
     const router = useRouter();
+    const [title, setTitle] = useState('');
+    const [tags, setTags] = useState(''); // comma separated
+    const [categories, setCategories] = useState(''); // not used in backend, but kept for UI
+    const [time, setTime] = useState('');
+    const [servings, setServings] = useState(''); // not used in backend, but kept for UI
     const [ingredients, setIngredients] = useState(['']);
     const [steps, setSteps] = useState(['']);
+    const [saving, setSaving] = useState(false);
 
     function addIngredient() {
         setIngredients([...ingredients, '']);
@@ -20,6 +38,42 @@ export default function AddRecipeManualScreen() {
     }
     function updateStep(idx: number, value: string) {
         setSteps(steps.map((step, i) => (i === idx ? value : step)));
+    }
+
+    async function handleSaveRecipe() {
+        setSaving(true);
+        try {
+            const { data } = await supabase.auth.getUser();
+            const user_id = data?.user?.id;
+            if (!user_id) {
+                Alert.alert('Error', 'You must be logged in to add a recipe.');
+                setSaving(false);
+                return;
+            }
+            // Parse tags as array
+            const tagsArr = tags.split(',').map(t => t.trim()).filter(Boolean);
+            // Filter out empty ingredients/steps
+            const ingredientsArr = ingredients.map(i => i.trim()).filter(Boolean);
+            const stepsArr = steps.map(s => s.trim()).filter(Boolean);
+            if (!title || ingredientsArr.length === 0 || stepsArr.length === 0) {
+                Alert.alert('Error', 'Please fill out the recipe name, at least one ingredient, and one step.');
+                setSaving(false);
+                return;
+            }
+            await addRecipeToServer({
+                user_id,
+                title,
+                time,
+                tags: tagsArr,
+                ingredients: ingredientsArr,
+                steps: stepsArr,
+            });
+            router.replace('/(tabs)');
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to add recipe');
+        } finally {
+            setSaving(false);
+        }
     }
 
     return (
@@ -35,13 +89,13 @@ export default function AddRecipeManualScreen() {
                 </View>
                 {/* Form */}
                 <CustomText style={styles.sectionLabel}>Recipe Name</CustomText>
-                <TextInput style={styles.input} placeholder="Enter Recipe Name" placeholderTextColor="#A0A0A0" />
+                <TextInput style={styles.input} placeholder="Enter Recipe Name" placeholderTextColor="#A0A0A0" value={title} onChangeText={setTitle} />
                 <CustomText style={styles.sectionLabel}>Tags & Categories</CustomText>
-                <TextInput style={styles.input} placeholder="Select Tags" placeholderTextColor="#A0A0A0" />
-                <TextInput style={styles.input} placeholder="Select Categories" placeholderTextColor="#A0A0A0" />
+                <TextInput style={styles.input} placeholder="Select Tags (comma separated)" placeholderTextColor="#A0A0A0" value={tags} onChangeText={setTags} />
+                <TextInput style={styles.input} placeholder="Select Categories" placeholderTextColor="#A0A0A0" value={categories} onChangeText={setCategories} />
                 <CustomText style={styles.sectionLabel}>Cook Time & Servings</CustomText>
-                <TextInput style={styles.input} placeholder="Cook time (minutes)" placeholderTextColor="#A0A0A0" keyboardType="numeric" />
-                <TextInput style={styles.input} placeholder="Servings" placeholderTextColor="#A0A0A0" keyboardType="numeric" />
+                <TextInput style={styles.input} placeholder="Cook time (minutes)" placeholderTextColor="#A0A0A0" keyboardType="numeric" value={time} onChangeText={setTime} />
+                <TextInput style={styles.input} placeholder="Servings" placeholderTextColor="#A0A0A0" keyboardType="numeric" value={servings} onChangeText={setServings} />
                 <CustomText style={styles.sectionLabel}>Ingredients</CustomText>
                 {ingredients.map((ing, idx) => (
                     <TextInput
@@ -70,8 +124,8 @@ export default function AddRecipeManualScreen() {
                 <TouchableOpacity style={styles.addButton} onPress={addStep}>
                     <CustomText style={styles.addButtonText}>Add Step</CustomText>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.saveButton}>
-                    <CustomText style={styles.saveButtonText}>Save Recipe</CustomText>
+                <TouchableOpacity style={styles.saveButton} onPress={handleSaveRecipe} disabled={saving}>
+                    <CustomText style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Recipe'}</CustomText>
                 </TouchableOpacity>
             </ScrollView>
         </View>
