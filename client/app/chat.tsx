@@ -205,6 +205,7 @@ export default function ChatScreen() {
                                 onPress={() => {
                                     const params = {
                                         ...msg.recipe,
+                                        title: msg.recipe.name,
                                         isAI: '1',
                                         tags: Array.isArray(msg.recipe.tags) ? msg.recipe.tags.join('||') : msg.recipe.tags,
                                         ingredients: Array.isArray(msg.recipe.ingredients) ? msg.recipe.ingredients.join('||') : msg.recipe.ingredients,

@@ -3,16 +3,38 @@ import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Image, SafeAreaVi
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import CustomText from '../components/CustomText';
+import { supabase } from '../lib/supabase';
 
 export default function RecipeDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const isAIRecipe = params.isAI === '1';
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
   function ensureArray(val: any, fallback: string[]): string[] {
-    if (Array.isArray(val)) return val;
+    if (Array.isArray(val)) {
+      // Only split if it's a single string AND contains obvious delimiters
+      if (val.length === 1 && typeof val[0] === 'string') {
+        const s = val[0];
+        if (s.includes('||')) return s.split('||').map(x => x.trim());
+        if (s.includes(',') && s.split(',').length > 3) return s.split(',').map(x => x.trim());
+        if (s.includes('\\n')) return s.split('\\n').map(x => x.trim());
+        if (s.includes('\n')) return s.split('\n').map(x => x.trim());
+      }
+      // Otherwise, return as-is (do NOT split each string in the array)
+      return val;
+    }
     if (typeof val === 'string') {
-      if (val.includes('||')) return val.split('||');
+      // Try to parse JSON array
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return ensureArray(parsed, fallback);
+      } catch { }
+      // Fallback: split on delimiters
+      if (val.includes('||')) return val.split('||').map(s => s.trim());
+      if (val.includes(',') && val.split(',').length > 3) return val.split(',').map(s => s.trim());
+      if (val.includes('\\n')) return val.split('\\n').map(s => s.trim());
+      if (val.includes('\n')) return val.split('\n').map(s => s.trim());
       return [val];
     }
     return fallback;
@@ -154,6 +176,33 @@ export default function RecipeDetailScreen() {
     { swap: 'Ground Chicken', for: 'Ground Beef' },
   ];
 
+  async function handleSaveAIRecipe() {
+    setSaveStatus('saving');
+    try {
+      const { data } = await supabase.auth.getUser();
+      const user_id = data?.user?.id;
+      if (!user_id) throw new Error('You must be logged in to save recipes.');
+      const payload = {
+        user_id,
+        title: recipe.title,
+        time: recipe.time,
+        tags: recipe.tags,
+        ingredients: recipe.ingredients,
+        steps: recipe.steps,
+      };
+      const response = await fetch('https://familycooksclean.onrender.com/recipes/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error('Failed to save recipe');
+      setSaveStatus('success');
+    } catch (err: any) {
+      setSaveStatus('error');
+      alert(err.message || 'Failed to save recipe');
+    }
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F6F9' }}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -195,10 +244,15 @@ export default function RecipeDetailScreen() {
               </TouchableOpacity>
             </View>
           )}
-          {isAIRecipe && (
-            <TouchableOpacity style={styles.saveAIButton}>
-              <CustomText style={styles.saveAIButtonText}>Save AI Recipe</CustomText>
+          {isAIRecipe && saveStatus !== 'success' && (
+            <TouchableOpacity style={styles.saveAIButton} onPress={handleSaveAIRecipe} disabled={saveStatus === 'saving'}>
+              <CustomText style={styles.saveAIButtonText}>
+                {saveStatus === 'saving' ? 'Saving...' : 'Save AI Recipe'}
+              </CustomText>
             </TouchableOpacity>
+          )}
+          {saveStatus === 'success' && (
+            <CustomText style={[styles.saveAIButtonText, { color: '#7BA892', textAlign: 'center', marginTop: 8 }]}>Recipe saved!</CustomText>
           )}
           {/* Timer Options Modal */}
           <Modal
