@@ -92,6 +92,24 @@ For non-recipe responses, respond as normal but include "is_recipe": false.
             .from('messages')
             .insert([{ chat_id: chatId, user_id, role: 'assistant', content: aiResponse }]);
 
+        // 6. Fetch all messages for this chat
+        const { data: allMessages, error: fetchAllError } = await supabase
+            .from('messages')
+            .select('role,content')
+            .eq('chat_id', chatId)
+            .order('created_at', { ascending: true });
+
+        if (!fetchAllError && allMessages) {
+            // 7. Generate summary
+            const summary = await generateChatSummary(allMessages);
+
+            // 8. Update the chats table with the new summary
+            await supabase
+                .from('chats')
+                .update({ summary })
+                .eq('id', chatId);
+        }
+
         res.json({ chat_id: chatId, ai_response: aiResponse });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -127,5 +145,22 @@ router.get('/messages', async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
+
+async function generateChatSummary(messages) {
+    const prompt = `
+Summarize the following conversation in 1-2 sentences for a chat history list. Focus on the main topic, recipe, or user request. If the chat is mostly casual or contains no recipe, summarize the general theme.
+
+${messages.map(m => `${m.role}: ${m.content}`).join('\n')}
+    `;
+    const completion = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+            { role: 'system', content: prompt }
+        ],
+        max_tokens: 60,
+        temperature: 0.7,
+    });
+    return completion.choices[0].message.content.trim();
+}
 
 module.exports = router;
