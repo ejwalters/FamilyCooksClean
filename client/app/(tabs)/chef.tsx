@@ -1,9 +1,10 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import CustomText from '../../components/CustomText';
 import { View, StyleSheet, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ChefScreen() {
     const router = useRouter();
@@ -24,8 +25,8 @@ export default function ChefScreen() {
         });
     }, []);
 
-    // Fetch chats when userId is available
-    useEffect(() => {
+    // Fetch chats when userId is available or when screen is focused
+    const fetchChats = useCallback(() => {
         if (!userId) return;
         setLoading(true);
         fetch(`https://familycooksclean.onrender.com/ai/chats?user_id=${userId}`)
@@ -36,6 +37,16 @@ export default function ChefScreen() {
             })
             .catch(() => setLoading(false));
     }, [userId]);
+
+    useEffect(() => {
+        fetchChats();
+    }, [fetchChats]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchChats();
+        }, [fetchChats])
+    );
 
     // Helper to open chat with animation origin
     const openChatFromRef = (ref: React.RefObject<any>, chatId?: string) => {

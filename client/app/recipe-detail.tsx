@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Image, SafeAreaView, Modal, Animated, Easing, KeyboardAvoidingView, Platform, TextInput, PanResponder, Dimensions } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Image, SafeAreaView, Modal, Animated, Easing, KeyboardAvoidingView, Platform, TextInput, PanResponder, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import CustomText from '../components/CustomText';
@@ -10,64 +10,149 @@ export default function RecipeDetailScreen() {
   const params = useLocalSearchParams();
   const isAIRecipe = params.isAI === '1';
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-
-  function ensureArray(val: any, fallback: string[]): string[] {
-    if (Array.isArray(val)) {
-      // Only split if it's a single string AND contains obvious delimiters
-      if (val.length === 1 && typeof val[0] === 'string') {
-        const s = val[0];
-        if (s.includes('||')) return s.split('||').map(x => x.trim());
-        if (s.includes(',') && s.split(',').length > 3) return s.split(',').map(x => x.trim());
-        if (s.includes('\\n')) return s.split('\\n').map(x => x.trim());
-        if (s.includes('\n')) return s.split('\n').map(x => x.trim());
-      }
-      // Otherwise, return as-is (do NOT split each string in the array)
-      return val;
-    }
-    if (typeof val === 'string') {
-      // Try to parse JSON array
-      try {
-        const parsed = JSON.parse(val);
-        if (Array.isArray(parsed)) return ensureArray(parsed, fallback);
-      } catch { }
-      // Fallback: split on delimiters
-      if (val.includes('||')) return val.split('||').map(s => s.trim());
-      if (val.includes(',') && val.split(',').length > 3) return val.split(',').map(s => s.trim());
-      if (val.includes('\\n')) return val.split('\\n').map(s => s.trim());
-      if (val.includes('\n')) return val.split('\n').map(s => s.trim());
-      return [val];
-    }
-    return fallback;
-  }
-  const recipe = {
-    title: params.title || 'Honey Garlic Chicken',
-    time: params.time || '15 min',
-    lastMade: '8 days ago',
-    tags: ensureArray(params.tags, ['Kid Friendly', 'Healthy']),
-    ingredients: ensureArray(params.ingredients, [
-      '1 lb. Chicken breast',
-      '1 lb. Chicken breast',
-      '1 lb. Chicken breast',
-      '1 lb. Chicken breast',
-      '1 lb. Chicken breast',
-    ]),
-    steps: ensureArray(params.steps, [
-      'Prepare the chicken breast',
-      'Prepare the chicken breast',
-      'Prepare the chicken breast',
-    ]),
-  };
+  const [loading, setLoading] = useState(!isAIRecipe);
+  const [recipe, setRecipe] = useState<any>(null);
 
   // --- New State ---
   const [cooking, setCooking] = useState(false);
   const [timer, setTimer] = useState(0); // Start at 0 and count up
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [checkedIngredients, setCheckedIngredients] = useState(Array(recipe.ingredients.length).fill(false));
-  const [completedSteps, setCompletedSteps] = useState(Array(recipe.steps.length).fill(false));
+  const [checkedIngredients, setCheckedIngredients] = useState<boolean[]>([]);
+  const [completedSteps, setCompletedSteps] = useState<boolean[]>([]);
   const [timerRunning, setTimerRunning] = useState(false);
   const [showTimerOptions, setShowTimerOptions] = useState(false);
-  // Airbnb-style pulse animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [showChefSheet, setShowChefSheet] = useState(false);
+  const chefSheetAnim = useRef(new Animated.Value(0)).current;
+  const screenHeight = Dimensions.get('window').height;
+  const chefSheetPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 10,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          chefSheetAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 120) {
+          setShowChefSheet(false);
+        } else {
+          Animated.spring(chefSheetAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+  const [chefInput, setChefInput] = useState('Make this dairy free...');
+  const chefFilters = ['Vegan', 'Kid-friendly', 'Simplify', 'More protein'];
+  const chefSwaps = [
+    { swap: 'Almond Milk', for: 'Whole Milk' },
+    { swap: 'Ground Chicken', for: 'Ground Beef' },
+  ];
+  const [stepButtonAnim, setStepButtonAnim] = useState<Animated.Value[]>([]);
+
+  useEffect(() => {
+    console.log('params', params);
+    if (!isAIRecipe && params.id) {
+      setLoading(true);
+      fetch(`https://familycooksclean.onrender.com/recipes/${params.id}`)
+        .then(res => res.json())
+        .then(data => {
+          setRecipe(data);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    } else if (isAIRecipe) {
+      // For AI recipes, use params directly, but ensure arrays
+      console.log('AI params', {
+        tags: params.tags,
+        ingredients: params.ingredients,
+        steps: params.steps,
+      });
+      console.log('AI params.steps', params.steps, Array.isArray(params.steps), typeof params.steps);
+      function toArray(val: any): string[] {
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+          // Try to parse as JSON array first (for AI recipes passed from chat)
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) return parsed;
+          } catch { }
+          // Try to split on period+comma or period+space+capital letter
+          if (val.match(/\\.,|\\. (?=[A-Z])/)) {
+            return val.split(/\\.,|\\. (?=[A-Z])/).map(s => s.trim()).filter(Boolean);
+          }
+          if (val.includes('||')) return val.split('||').map(s => s.trim());
+          if (val.includes('\\n')) return val.split('\\n').map(s => s.trim());
+          if (val.includes('\n')) return val.split('\n').map(s => s.trim());
+          if (!val.includes('.') && val.split(',').length > 1) return val.split(',').map(s => s.trim());
+          return [val];
+        }
+        return [];
+      }
+      setRecipe({
+        title: params.title || 'AI Recipe',
+        time: params.time || '',
+        tags: toArray(params.tags),
+        ingredients: toArray(params.ingredients),
+        steps: toArray(params.steps),
+      });
+      setLoading(false);
+    }
+  }, [params.id, isAIRecipe]);
+
+  function ensureArray(val: any, fallback: string[]): string[] {
+    if (Array.isArray(val)) {
+      return val;
+    }
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return ensureArray(parsed, fallback);
+      } catch { }
+      if (val.includes('||')) return val.split('||').map(s => s.trim());
+      if (val.includes('\\n')) return val.split('\\n').map(s => s.trim());
+      if (val.includes('\n')) return val.split('\n').map(s => s.trim());
+      // Only split on commas if there are NO periods (so it's not full sentences)
+      if (!val.includes('.') && val.split(',').length > 1) return val.split(',').map(s => s.trim());
+      return [val];
+    }
+    return fallback;
+  }
+
+  // Use ensureArray for tags, ingredients, steps
+  const tags = ensureArray(recipe?.tags, []);
+  const ingredients = ensureArray(recipe?.ingredients, []);
+  const steps = ensureArray(recipe?.steps, []);
+
+  // Keep checked/completed state in sync with ingredients/steps length
+  useEffect(() => {
+    setCheckedIngredients(Array(ingredients.length).fill(false));
+  }, [ingredients.length]);
+  useEffect(() => {
+    setCompletedSteps(Array(steps.length).fill(false));
+  }, [steps.length]);
+
+  // Add animation for step button color
+  useEffect(() => {
+    setStepButtonAnim(steps.map(() => new Animated.Value(0)));
+  }, [steps.length]);
+
+  useEffect(() => {
+    completedSteps.forEach((isComplete, idx) => {
+      if (stepButtonAnim[idx]) {
+        Animated.timing(stepButtonAnim[idx], {
+          toValue: isComplete ? 1 : 0,
+          duration: 350,
+          useNativeDriver: false,
+          easing: Easing.inOut(Easing.ease),
+        }).start();
+      }
+    });
+  }, [completedSteps, stepButtonAnim]);
+
   // Timer increment effect (separate from animation)
   useEffect(() => {
     if (cooking && timerRunning) {
@@ -90,7 +175,6 @@ export default function RecipeDetailScreen() {
     } else {
       pulseAnim.setValue(1);
     }
-    // No cleanup needed for animation here
   }, [cooking, timerRunning]);
 
   // Format timer as mm:ss
@@ -118,63 +202,14 @@ export default function RecipeDetailScreen() {
     });
   };
 
-  // Add animation for step button color
-  const stepButtonAnim = useRef(recipe.steps.map(() => new Animated.Value(0))).current;
-  useEffect(() => {
-    completedSteps.forEach((isComplete, idx) => {
-      Animated.timing(stepButtonAnim[idx], {
-        toValue: isComplete ? 1 : 0,
-        duration: 350,
-        useNativeDriver: false,
-        easing: Easing.inOut(Easing.ease),
-      }).start();
-    });
-  }, [completedSteps]);
-
-  const [showChefSheet, setShowChefSheet] = useState(false);
-  const chefSheetAnim = useRef(new Animated.Value(0)).current;
-  const screenHeight = Dimensions.get('window').height;
-
-  // PanResponder for swipe-to-dismiss
-  const chefSheetPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 10,
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          chefSheetAnim.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 120) {
-          setShowChefSheet(false);
-        } else {
-          Animated.spring(chefSheetAnim, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
-  useEffect(() => {
-    if (showChefSheet) {
-      chefSheetAnim.setValue(screenHeight);
-      Animated.timing(chefSheetAnim, {
-        toValue: 0,
-        duration: 320,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [showChefSheet]);
-
-  // Placeholder state for AI Chef modal
-  const [chefInput, setChefInput] = useState('Make this dairy free...');
-  const chefFilters = ['Vegan', 'Kid-friendly', 'Simplify', 'More protein'];
-  const chefSwaps = [
-    { swap: 'Almond Milk', for: 'Whole Milk' },
-    { swap: 'Ground Chicken', for: 'Ground Beef' },
-  ];
+  // Show loading spinner while fetching
+  if (loading || !recipe) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F6F9', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#8CBEC7" />
+      </SafeAreaView>
+    );
+  }
 
   async function handleSaveAIRecipe() {
     setSaveStatus('saving');
@@ -203,6 +238,8 @@ export default function RecipeDetailScreen() {
     }
   }
 
+  console.log('Final steps for rendering:', steps);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F6F9' }}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -224,7 +261,7 @@ export default function RecipeDetailScreen() {
             <Ionicons name="time-outline" size={16} color="#6C757D" /> {recipe.time}  •  Last made {recipe.lastMade}
           </CustomText>
           <View style={{ flexDirection: 'row', marginVertical: 8 }}>
-            {recipe.tags.map((tag: string, idx: number) => (
+            {tags.map((tag: string, idx: number) => (
               <View key={idx} style={styles.tag}><CustomText style={styles.tagText}>{tag}</CustomText></View>
             ))}
           </View>
@@ -291,7 +328,7 @@ export default function RecipeDetailScreen() {
             </View>
           </Modal>
           <CustomText style={styles.sectionTitle}>Ingredients</CustomText>
-          {recipe.ingredients.map((ing: string, idx: number) => (
+          {ingredients.map((ing: string, idx: number) => (
             <TouchableOpacity
               key={idx}
               style={[styles.ingredientRow, !cooking && { opacity: 0.5 }]}
@@ -308,12 +345,14 @@ export default function RecipeDetailScreen() {
             </TouchableOpacity>
           ))}
           <CustomText style={styles.sectionTitle}>Steps</CustomText>
-          {recipe.steps.map((step: string, idx: number) => {
+          {steps.map((step: string, idx: number) => {
             // Interpolate button color
-            const bgColor = stepButtonAnim[idx].interpolate({
-              inputRange: [0, 1],
-              outputRange: ['#E2B36A', '#7BA892'],
-            });
+            const bgColor = stepButtonAnim[idx]
+              ? stepButtonAnim[idx].interpolate({
+                inputRange: [0, 1],
+                outputRange: ['#E2B36A', '#7BA892'],
+              })
+              : '#E2B36A'; // fallback color if anim not ready
             return (
               <View key={idx} style={styles.stepRow}>
                 <CustomText style={[styles.stepText, completedSteps[idx] && { textDecorationLine: 'line-through', color: '#A0A0A0' }]}>{idx + 1}. {step}</CustomText>

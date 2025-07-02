@@ -75,7 +75,7 @@ export default function RecipesScreen() {
                     data={recipes}
                     keyExtractor={item => item.id}
                     renderItem={({ item }) => (
-                        <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: item })}>
+                        <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })}>
                             <View style={styles.recipeCard}>
                                 <View style={styles.recipeIcon}>
                                     <Image

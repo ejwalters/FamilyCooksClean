@@ -61,8 +61,12 @@ export default function ChatScreen() {
                         const maybeJson = extractJsonFromString(msg.content);
                         if (maybeJson && maybeJson.is_recipe) {
                             return [{ role: 'assistant', content: '[RECIPE_CARD]', recipe: maybeJson }];
-                        } else if (maybeJson && maybeJson.is_recipe === false && maybeJson.message) {
-                            return [{ role: 'assistant', content: maybeJson.message }];
+                        } else if (maybeJson && maybeJson.is_recipe === false) {
+                            // Prefer 'text', fallback to 'message'
+                            const text = maybeJson.text || maybeJson.message;
+                            if (text) {
+                                return [{ role: 'assistant', content: text }];
+                            }
                         }
                     }
                     return [msg];
@@ -108,10 +112,12 @@ export default function ChatScreen() {
                         ...prev,
                         { role: 'assistant', content: '[RECIPE_CARD]', recipe: maybeJson }
                     ]);
-                } else if (maybeJson && maybeJson.is_recipe === false && maybeJson.message) {
+                } else if (maybeJson && maybeJson.is_recipe === false) {
+                    // Prefer 'text', fallback to 'message'
+                    const text = maybeJson.text || maybeJson.message;
                     setAllMessages(prev => [
                         ...prev,
-                        { role: 'assistant', content: maybeJson.message }
+                        { role: 'assistant', content: text || data.ai_response }
                     ]);
                 } else {
                     setAllMessages(prev => [
@@ -198,6 +204,11 @@ export default function ChatScreen() {
             <ScrollView style={styles.messagesContainer} contentContainerStyle={{ paddingBottom: 24 }}>
                 {allMessages.map((msg, idx) => {
                     if (msg.content === '[RECIPE_CARD]' && msg.recipe) {
+                        console.log('Passing to detail:', {
+                            steps: msg.recipe.steps,
+                            isArray: Array.isArray(msg.recipe.steps),
+                            typeofSteps: typeof msg.recipe.steps,
+                        });
                         return (
                             <TouchableOpacity
                                 key={idx}
@@ -207,9 +218,9 @@ export default function ChatScreen() {
                                         ...msg.recipe,
                                         title: msg.recipe.name,
                                         isAI: '1',
-                                        tags: Array.isArray(msg.recipe.tags) ? msg.recipe.tags.join('||') : msg.recipe.tags,
-                                        ingredients: Array.isArray(msg.recipe.ingredients) ? msg.recipe.ingredients.join('||') : msg.recipe.ingredients,
-                                        steps: Array.isArray(msg.recipe.steps) ? msg.recipe.steps.join('||') : msg.recipe.steps,
+                                        tags: JSON.stringify(msg.recipe.tags),
+                                        ingredients: JSON.stringify(msg.recipe.ingredients),
+                                        steps: JSON.stringify(msg.recipe.steps),
                                     };
                                     router.push({ pathname: '/recipe-detail', params });
                                 }}
@@ -228,6 +239,19 @@ export default function ChatScreen() {
                             </TouchableOpacity>
                         );
                     }
+                    // Debug log
+                    let displayContent = msg.content;
+                    // If it's a string that looks like JSON, parse it
+                    if (typeof displayContent === 'string' && displayContent.trim().startsWith('{')) {
+                        try {
+                            const parsed = JSON.parse(displayContent);
+                            displayContent = parsed.text || parsed.message || parsed.response || displayContent;
+                        } catch {
+                            // Not valid JSON, leave as is
+                        }
+                    } else if (typeof displayContent === 'object' && displayContent !== null) {
+                        displayContent = displayContent.text || displayContent.message || displayContent.response || '';
+                    }
                     return (
                         <View key={idx} style={[styles.messageRow, msg.role === 'assistant' ? styles.aiRow : styles.userRow]}>
                             <Image
@@ -235,7 +259,7 @@ export default function ChatScreen() {
                                 style={styles.avatar}
                             />
                             <View style={[styles.bubble, msg.role === 'assistant' ? styles.aiBubble : styles.userBubble]}>
-                                <CustomText style={[styles.bubbleText, msg.role === 'assistant' ? styles.aiText : styles.userText]}>{msg.content}</CustomText>
+                                <CustomText style={[styles.bubbleText, msg.role === 'assistant' ? styles.aiText : styles.userText]}>{displayContent}</CustomText>
                             </View>
                         </View>
                     );

@@ -1,6 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 
-const supabaseUrl = 'https://ewkdxdmdphpdzrhqmqgo.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3a2R4ZG1kcGhwZHpyaHFtcWdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzMjgyMTcsImV4cCI6MjA2NjkwNDIxN30.N49V_CJThJm0k0jwzlWGcfpQFNUJYUw0kaCbNKQzbp0';
+// Get environment variables from Expo Constants
+const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl;
+const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey;
+
+// Validate environment variables
+if (!supabaseUrl) {
+    throw new Error(
+        'Missing SUPABASE_URL environment variable. Please check your .env file and app.config.js'
+    );
+}
+
+if (!supabaseAnonKey) {
+    throw new Error(
+        'Missing SUPABASE_ANON_KEY environment variable. Please check your .env file and app.config.js'
+    );
+}
+
+// Validate URL format
+if (!supabaseUrl.startsWith('https://')) {
+    throw new Error('SUPABASE_URL must be a valid HTTPS URL');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
