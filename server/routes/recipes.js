@@ -32,4 +32,18 @@ router.get('/list', async (req, res) => {
     res.json(data);
 });
 
+// GET /recipes/:id
+router.get('/:id', async (req, res) => {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: 'Missing recipe id' });
+    const { data, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data) return res.status(404).json({ error: 'Recipe not found' });
+    res.json(data);
+});
+
 module.exports = router;
