@@ -88,9 +88,33 @@ For non-recipe responses, respond as normal but include "is_recipe": false.
         }
 
         // 5. Store AI response
+        let normalizedContent = aiResponse;
+        try {
+            const parsed = JSON.parse(aiResponse);
+            if (parsed && parsed.is_recipe) {
+                function toArray(val) {
+                    if (Array.isArray(val)) return val;
+                    if (typeof val === 'string') {
+                        if (val.includes('||')) return val.split('||').map(s => s.trim());
+                        if (val.includes('\\n')) return val.split('\\n').map(s => s.trim());
+                        if (val.includes('\n')) return val.split('\n').map(s => s.trim());
+                        if (val.split(',').length > 1) return val.split(',').map(s => s.trim());
+                        return [val];
+                    }
+                    return [];
+                }
+                parsed.tags = toArray(parsed.tags);
+                parsed.ingredients = toArray(parsed.ingredients);
+                parsed.steps = toArray(parsed.steps);
+                normalizedContent = JSON.stringify(parsed, null, 2);
+            }
+        } catch (e) {
+            // Not valid JSON, leave as is
+        }
+
         await supabase
             .from('messages')
-            .insert([{ chat_id: chatId, user_id, role: 'assistant', content: aiResponse }]);
+            .insert([{ chat_id: chatId, user_id, role: 'assistant', content: normalizedContent }]);
 
         // 6. Fetch all messages for this chat
         const { data: allMessages, error: fetchAllError } = await supabase
