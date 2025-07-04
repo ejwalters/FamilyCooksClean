@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Modal, Animated, Pressable, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import CustomText from '../../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -21,6 +21,9 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchTouched, setSearchTouched] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const dropdownRef = useRef<View>(null);
 
   useEffect(() => {
     if (!search) {
@@ -33,88 +36,120 @@ export default function HomeScreen() {
       fetch(`https://familycooksclean.onrender.com/recipes/list?q=${encodeURIComponent(search)}`)
         .then(res => res.json())
         .then(data => {
-          setSearchResults(data);
+          setSearchResults(Array.isArray(data) ? data : []);
           setSearching(false);
         })
-        .catch(() => setSearching(false));
+        .catch(() => { setSearchResults([]); setSearching(false); });
     }, 400);
     return () => clearTimeout(timeout);
   }, [search]);
 
+  // Pulsing animation for fork-knife
+  useEffect(() => {
+    if (searching) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [searching]);
+
+  function closeDropdown() {
+    setSearch('');
+    setSearchTouched(false);
+    setSearchResults([]);
+    Keyboard.dismiss();
+  }
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-      <View style={styles.header}>
-        <Image
-          source={require('../../assets/images/avatar.png')}
-          style={styles.avatar}
-        />
-        <CustomText style={styles.logoText}>LOGO</CustomText>
-      </View>
-      <View style={styles.searchBarContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search Recipes"
-          placeholderTextColor="#888"
-          value={search}
-          onChangeText={t => { setSearch(t); setSearchTouched(true); }}
-          autoCorrect={false}
-          autoCapitalize="none"
-        />
-        <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
-      </View>
-      {/* Search Results */}
-      {searchTouched && search.length > 0 && (
-        <View style={{ minHeight: 120, marginBottom: 16 }}>
-          {searching ? (
-            <ActivityIndicator size="large" color="#6DA98C" style={{ marginTop: 24 }} />
-          ) : searchResults.length === 0 ? (
-            <CustomText style={{ textAlign: 'center', color: '#6C757D', marginTop: 24 }}>No recipes found.</CustomText>
-          ) : (
-            <FlatList
-              data={searchResults}
-              keyExtractor={item => item.id || item.title}
-              renderItem={({ item }) => (
-                <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })} style={[styles.card, styles.cardBlue, { marginBottom: 10 }]}> 
-                  <CustomText style={styles.cardText}>{item.title}</CustomText>
-                </TouchableOpacity>
-              )}
-              keyboardShouldPersistTaps="handled"
-              style={{ maxHeight: 300 }}
+    <TouchableWithoutFeedback onPress={closeDropdown} accessible={false}>
+      <View style={{ flex: 1 }}>
+        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Image
+              source={require('../../assets/images/avatar.png')}
+              style={styles.avatar}
             />
+            <CustomText style={styles.logoText}>LOGO</CustomText>
+          </View>
+          <View style={styles.searchBarContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search Recipes"
+              placeholderTextColor="#888"
+              value={search}
+              onChangeText={t => { setSearch(t); setSearchTouched(true); }}
+              autoCorrect={false}
+              autoCapitalize="none"
+              onFocus={() => setSearchTouched(true)}
+            />
+            <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
+          </View>
+          {/* Search Dropdown */}
+          {searchTouched && search.length > 0 && (
+            <View style={styles.dropdown} ref={dropdownRef}>
+              {searching ? (
+                <View style={styles.loadingBox}>
+                  <Animated.Image
+                    source={require('../../assets/images/fork-knife.png')}
+                    style={{ width: 40, height: 40, tintColor: '#8CBEC7', transform: [{ scale: pulseAnim }] }}
+                  />
+                  <CustomText style={{ color: '#8CBEC7', marginTop: 8, fontWeight: '700' }}>Searching...</CustomText>
+                </View>
+              ) : !Array.isArray(searchResults) || searchResults.length === 0 ? (
+                <CustomText style={{ textAlign: 'center', color: '#6C757D', marginTop: 16, marginBottom: 12 }}>No recipes found.</CustomText>
+              ) : (
+                <View style={{ maxHeight: 260 }}>
+                  {searchResults.slice(0, 15).map((item, idx) => (
+                    <TouchableOpacity
+                      key={item.id || item.title || idx}
+                      onPress={() => { router.push({ pathname: '/recipe-detail', params: { id: item.id } }); closeDropdown(); }}
+                      style={styles.dropdownItem}
+                    >
+                      <CustomText style={styles.dropdownItemText}>{item.title}</CustomText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
           )}
-        </View>
-      )}
-      <CustomText style={styles.sectionPrompt}>Stuck without a dinner plan?</CustomText>
-      <TouchableOpacity style={styles.aiChefButton}>
-        <CustomText style={styles.aiChefButtonText}>Ask The AI Chef</CustomText>
-      </TouchableOpacity>
-      <CustomText style={styles.sectionTitle}>Recently Cooked</CustomText>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.cardRow}
-        style={styles.cardRowContainer}
-      >
-        {recentlyCooked.map((item, idx) => (
-          <TouchableOpacity key={idx} onPress={() => router.push({ pathname: '/recipe-detail', params: item })} style={[styles.card, styles.cardBlue]}>
-            <CustomText style={styles.cardText}>{item.title}</CustomText>
+          <CustomText style={styles.sectionPrompt}>Stuck without a dinner plan?</CustomText>
+          <TouchableOpacity style={styles.aiChefButton}>
+            <CustomText style={styles.aiChefButtonText}>Ask The AI Chef</CustomText>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <CustomText style={styles.sectionTitle}>Favorites</CustomText>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.cardRow}
-        style={styles.cardRowContainer}
-      >
-        {favorites.map((item, idx) => (
-          <TouchableOpacity key={idx} onPress={() => router.push({ pathname: '/recipe-detail', params: item })} style={[styles.card, styles.cardGold]}>
-            <CustomText style={styles.cardText}>{item.title}</CustomText>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </ScrollView>
+          <CustomText style={styles.sectionTitle}>Recently Cooked</CustomText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cardRow}
+            style={styles.cardRowContainer}
+          >
+            {recentlyCooked.map((item, idx) => (
+              <TouchableOpacity key={idx} onPress={() => router.push({ pathname: '/recipe-detail', params: item })} style={[styles.card, styles.cardBlue]}>
+                <CustomText style={styles.cardText}>{item.title}</CustomText>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <CustomText style={styles.sectionTitle}>Favorites</CustomText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cardRow}
+            style={styles.cardRowContainer}
+          >
+            {favorites.map((item, idx) => (
+              <TouchableOpacity key={idx} onPress={() => router.push({ pathname: '/recipe-detail', params: item })} style={[styles.card, styles.cardGold]}>
+                <CustomText style={styles.cardText}>{item.title}</CustomText>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </ScrollView>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -214,5 +249,39 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 132, // below search bar
+    left: 20,
+    right: 20,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10,
+    shadowRadius: 18,
+    elevation: 12,
+    zIndex: 10,
+    minHeight: 40,
+    maxHeight: 300,
+  },
+  loadingBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+  },
+  dropdownItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F6F9',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#222',
+    fontWeight: '600',
   },
 });
