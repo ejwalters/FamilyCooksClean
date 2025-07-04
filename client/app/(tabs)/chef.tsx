@@ -12,6 +12,7 @@ export default function ChefScreen() {
     const chatBtnRefs = useRef<any[]>([]);
     const [chats, setChats] = useState<{ id: string; created_at?: string; summary?: string }[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searching, setSearching] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -27,41 +28,52 @@ export default function ChefScreen() {
     }, []);
 
     // Fetch chats when userId is available or when screen is focused
-    const fetchChats = useCallback(() => {
+    const fetchChats = useCallback((searchTerm = '', isSearch = false) => {
         if (!userId) return;
-        setLoading(true);
+        
+        if (isSearch) {
+            setSearching(true);
+        } else {
+            setLoading(true);
+        }
         
         // Build URL with search query if provided
         let url = `https://familycooksclean.onrender.com/ai/chats?user_id=${userId}`;
-        if (searchQuery.trim()) {
-            url += `&q=${encodeURIComponent(searchQuery.trim())}`;
+        if (searchTerm.trim()) {
+            url += `&q=${encodeURIComponent(searchTerm.trim())}`;
         }
         
         fetch(url)
             .then(res => res.json())
             .then(data => {
                 setChats(data);
-                setLoading(false);
+                if (isSearch) {
+                    setSearching(false);
+                } else {
+                    setLoading(false);
+                }
             })
-            .catch(() => setLoading(false));
-    }, [userId, searchQuery]);
-
-    useEffect(() => {
-        fetchChats();
-    }, [fetchChats]);
+            .catch(() => {
+                if (isSearch) {
+                    setSearching(false);
+                } else {
+                    setLoading(false);
+                }
+            });
+    }, [userId]);
 
     // Debounced search effect
     useEffect(() => {
         const timeout = setTimeout(() => {
-            fetchChats();
+            fetchChats(searchQuery, true); // true = isSearch
         }, 300); // 300ms debounce
 
         return () => clearTimeout(timeout);
-    }, [searchQuery]);
+    }, [searchQuery, fetchChats]);
 
     useFocusEffect(
         useCallback(() => {
-            fetchChats();
+            fetchChats('', false); // Load all chats when screen is focused
         }, [fetchChats])
     );
 
@@ -86,10 +98,15 @@ export default function ChefScreen() {
         }
     };
 
-    if (loading) {
+    if (loading && !searching) {
         return (
             <View style={styles.container}>
-                <ActivityIndicator size="large" color="#6DA98C" style={{ marginTop: 100 }} />
+                <View style={styles.mainLoadingContainer}>
+                    <Image
+                        source={require('../../assets/images/fork-knife.png')}
+                        style={styles.mainLoadingIcon}
+                    />
+                </View>
             </View>
         );
     }
@@ -206,6 +223,16 @@ const styles = StyleSheet.create({
     clearButton: {
         marginLeft: 8,
         padding: 2,
+    },
+    mainLoadingContainer: {
+        marginTop: 100,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    mainLoadingIcon: {
+        width: 48,
+        height: 48,
+        tintColor: '#6DA98C',
     },
     listContent: {
         paddingHorizontal: 16,
