@@ -245,7 +245,7 @@ export default function ChatScreen() {
         }
     };
 
-    if (loading) {
+    if (loading && allMessages.length === 0) {
         return (
             <View style={styles.container}>
                 <ActivityIndicator size="large" color="#6DA98C" style={{ marginTop: 100 }} />
@@ -262,7 +262,7 @@ export default function ChatScreen() {
     }
 
     // If no chat or no messages, prompt to start chat
-    if (!currentChatId || allMessages.length === 0) {
+    if (allMessages.length === 0) {
         return (
             <View style={styles.container}>
                 <Stack.Screen options={{ headerShown: false }} />
