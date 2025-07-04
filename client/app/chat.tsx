@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, TextInput, ActivityIndicator, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomText from '../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,59 @@ function extractJsonFromString(str: string) {
     }
 }
 
+function ChefTypingIndicator({ pulseAnim }: { pulseAnim: Animated.Value }) {
+    // Animated three dots (steam)
+    const dot1 = useRef(new Animated.Value(0)).current;
+    const dot2 = useRef(new Animated.Value(0)).current;
+    const dot3 = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const animate = () => {
+            Animated.sequence([
+                Animated.timing(dot1, { toValue: 1, duration: 400, useNativeDriver: true, easing: Easing.linear }),
+                Animated.timing(dot2, { toValue: 1, duration: 400, useNativeDriver: true, easing: Easing.linear }),
+                Animated.timing(dot3, { toValue: 1, duration: 400, useNativeDriver: true, easing: Easing.linear }),
+            ]).start(() => {
+                dot1.setValue(0);
+                dot2.setValue(0);
+                dot3.setValue(0);
+                animate();
+            });
+        };
+        animate();
+        return () => {
+            dot1.stopAnimation();
+            dot2.stopAnimation();
+            dot3.stopAnimation();
+        };
+    }, [dot1, dot2, dot3]);
+
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 36 }}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <View style={{ height: 18, flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', marginBottom: 0 }}>
+                    <Animated.View style={{
+                        width: 8, height: 8, borderRadius: 4, backgroundColor: '#8CBEC7', marginHorizontal: 2,
+                        opacity: dot1,
+                        transform: [{ translateY: dot1.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
+                    }} />
+                    <Animated.View style={{
+                        width: 8, height: 8, borderRadius: 4, backgroundColor: '#8CBEC7', marginHorizontal: 2,
+                        opacity: dot2,
+                        transform: [{ translateY: dot2.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
+                    }} />
+                    <Animated.View style={{
+                        width: 8, height: 8, borderRadius: 4, backgroundColor: '#8CBEC7', marginHorizontal: 2,
+                        opacity: dot3,
+                        transform: [{ translateY: dot3.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
+                    }} />
+                </View>
+            </View>
+            <CustomText style={styles.loadingText}>The AI Chef is cooking up something special...</CustomText>
+        </View>
+    );
+}
+
 export default function ChatScreen() {
     const router = useRouter();
     const { chat_id } = useLocalSearchParams();
@@ -36,6 +89,8 @@ export default function ChatScreen() {
     const [userId, setUserId] = useState<string | null>(null);
     const [currentChatId, setCurrentChatId] = useState<string | null>(chat_id ? String(chat_id) : null);
     const [sending, setSending] = useState(false);
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const scrollViewRef = useRef<ScrollView>(null);
 
     // Fetch user ID on mount
     useEffect(() => {
@@ -77,14 +132,54 @@ export default function ChatScreen() {
             .catch(() => setLoading(false));
     }, [currentChatId]);
 
+    // Animate loading state
+    useEffect(() => {
+        const hasLoading = allMessages.some(msg => msg.isLoading);
+        if (hasLoading) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                ])
+            ).start();
+        } else {
+            pulseAnim.setValue(1);
+        }
+    }, [allMessages, pulseAnim]);
+
+    // Scroll to bottom when messages change
+    useEffect(() => {
+        if (scrollViewRef.current) {
+            setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        }
+    }, [allMessages]);
+
     const sendMessage = async () => {
         if (!message.trim() || !userId) return;
+        
+        const userMessage = message.trim();
+        setMessage(''); // Clear input immediately
         setSending(true);
+        
+        // Immediately add user message to chat
+        setAllMessages(prev => [
+            ...prev,
+            { role: 'user', content: userMessage }
+        ]);
+        
+        // Add loading message
+        setAllMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: '[LOADING]', isLoading: true }
+        ]);
+        
         try {
             // If no chat yet, create one and send first message
             const payload: any = {
                 user_id: userId,
-                message: message.trim(),
+                message: userMessage,
             };
             if (currentChatId) {
                 payload.chat_id = currentChatId;
@@ -100,37 +195,51 @@ export default function ChatScreen() {
                 if (!currentChatId && data.chat_id) {
                     setCurrentChatId(data.chat_id);
                 }
-                // Add user message
-                setAllMessages(prev => [
-                    ...prev,
-                    { role: 'user', content: message.trim() }
-                ]);
-                // Robustly extract and parse JSON from AI response
-                const maybeJson = extractJsonFromString(data.ai_response);
-                if (maybeJson && maybeJson.is_recipe) {
-                    setAllMessages(prev => [
-                        ...prev,
-                        { role: 'assistant', content: '[RECIPE_CARD]', recipe: maybeJson }
-                    ]);
-                } else if (maybeJson && maybeJson.is_recipe === false) {
-                    // Prefer 'text', fallback to 'message'
-                    const text = maybeJson.text || maybeJson.message;
-                    setAllMessages(prev => [
-                        ...prev,
-                        { role: 'assistant', content: text || data.ai_response }
-                    ]);
-                } else {
-                    setAllMessages(prev => [
-                        ...prev,
-                        { role: 'assistant', content: data.ai_response }
-                    ]);
-                }
-                setMessage('');
+                
+                // Remove loading message and add AI response
+                setAllMessages(prev => {
+                    const withoutLoading = prev.filter(msg => !msg.isLoading);
+                    // Robustly extract and parse JSON from AI response
+                    const maybeJson = extractJsonFromString(data.ai_response);
+                    if (maybeJson && maybeJson.is_recipe) {
+                        return [
+                            ...withoutLoading,
+                            { role: 'assistant', content: '[RECIPE_CARD]', recipe: maybeJson }
+                        ];
+                    } else if (maybeJson && maybeJson.is_recipe === false) {
+                        // Prefer 'text', fallback to 'message'
+                        const text = maybeJson.text || maybeJson.message;
+                        return [
+                            ...withoutLoading,
+                            { role: 'assistant', content: text || data.ai_response }
+                        ];
+                    } else {
+                        return [
+                            ...withoutLoading,
+                            { role: 'assistant', content: data.ai_response }
+                        ];
+                    }
+                });
+                console.log('AI raw response:', data.ai_response);
             } else {
-                alert(data.error || 'Failed to send message');
+                // Remove loading message and show error
+                setAllMessages(prev => {
+                    const withoutLoading = prev.filter(msg => !msg.isLoading);
+                    return [
+                        ...withoutLoading,
+                        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }
+                    ];
+                });
             }
         } catch (err) {
-            alert('Failed to send message');
+            // Remove loading message and show error
+            setAllMessages(prev => {
+                const withoutLoading = prev.filter(msg => !msg.isLoading);
+                return [
+                    ...withoutLoading,
+                    { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }
+                ];
+            });
         } finally {
             setSending(false);
         }
@@ -201,8 +310,27 @@ export default function ChatScreen() {
                 <CustomText style={styles.headerText}>Ask the AI Chef</CustomText>
             </View>
             {/* Chat Messages */}
-            <ScrollView style={styles.messagesContainer} contentContainerStyle={{ paddingBottom: 24 }}>
+            <ScrollView 
+                ref={scrollViewRef}
+                style={styles.messagesContainer} 
+                contentContainerStyle={{ paddingBottom: 24 }}
+            >
                 {allMessages.map((msg, idx) => {
+                    // Handle loading state
+                    if (msg.isLoading) {
+                        return (
+                            <View key={idx} style={[styles.messageRow, styles.aiRow]}>
+                                <Image
+                                    source={require('../assets/images/ai-avatar.png')}
+                                    style={styles.avatar}
+                                />
+                                <View style={[styles.bubble, styles.aiBubble, styles.loadingBubble]}>
+                                    <ChefTypingIndicator pulseAnim={pulseAnim} />
+                                </View>
+                            </View>
+                        );
+                    }
+                    
                     if (msg.content === '[RECIPE_CARD]' && msg.recipe) {
                         console.log('Passing to detail:', {
                             steps: msg.recipe.steps,
@@ -347,6 +475,15 @@ const styles = StyleSheet.create({
     userBubble: {
         backgroundColor: '#F7D774',
         borderTopRightRadius: 0,
+        borderBottomRightRadius: 4,
+        borderBottomLeftRadius: 16,
+        borderTopLeftRadius: 16,
+        alignSelf: 'flex-end',
+        shadowColor: '#F7D774',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
     },
     bubbleText: {
         fontSize: 15,
@@ -406,6 +543,7 @@ const styles = StyleSheet.create({
         borderTopWidth: 0,
         shadowColor: 'transparent',
         elevation: 0,
+        marginTop: 16,
     },
     inputBox: {
         flexDirection: 'row',
@@ -449,5 +587,16 @@ const styles = StyleSheet.create({
         backgroundColor: '#F7F7F7',
         shadowOpacity: 0,
         elevation: 0,
+    },
+    loadingBubble: {
+        backgroundColor: '#F8F9FA',
+        borderWidth: 1,
+        borderColor: '#E9ECEF',
+    },
+    loadingText: {
+        color: '#6C757D',
+        fontSize: 15,
+        fontStyle: 'italic',
+        flex: 1,
     },
 }); 

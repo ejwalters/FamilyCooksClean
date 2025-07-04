@@ -64,7 +64,7 @@ IMPORTANT:
 - Example: "steps": ["Mix the flour and eggs.", "Bake for 20 minutes."], NOT "steps": "Mix the flour and eggs. Bake for 20 minutes." or "Mix the flour and eggs.||Bake for 20 minutes."
 - Do not include any text outside the JSON object if returning a recipe.
 
-For non-recipe responses, respond as normal but include "is_recipe": false.
+For non-recipe responses, always return a JSON object with "is_recipe": false and a helpful "text" field (e.g. "Sorry, I don't have a recipe for that, but I can help with something else!"). Never return just {"is_recipe": false}—always include a "text" field with a helpful message.
 `
         };
         const openaiMessages = [systemPrompt, ...messages.map(m => ({ role: m.role, content: m.content }))];
@@ -133,7 +133,6 @@ For non-recipe responses, respond as normal but include "is_recipe": false.
                 .update({ summary })
                 .eq('id', chatId);
         }
-
         res.json({ chat_id: chatId, ai_response: aiResponse });
     } catch (err) {
         res.status(500).json({ error: err.message });

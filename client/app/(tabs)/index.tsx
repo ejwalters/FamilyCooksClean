@@ -170,7 +170,10 @@ export default function HomeScreen() {
             )}
           </View>
           <CustomText style={styles.sectionPrompt}>Stuck without a dinner plan?</CustomText>
-          <TouchableOpacity style={styles.aiChefButton}>
+          <TouchableOpacity 
+            style={styles.aiChefButton}
+            onPress={() => router.push('/chat')}
+          >
             <CustomText style={styles.aiChefButtonText}>Ask The AI Chef</CustomText>
           </TouchableOpacity>
           <CustomText style={styles.sectionTitle}>Recently Cooked</CustomText>
