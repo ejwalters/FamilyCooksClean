@@ -13,6 +13,7 @@ export default function ChefScreen() {
     const [chats, setChats] = useState<{ id: string; created_at?: string; summary?: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Fetch user ID on mount
     useEffect(() => {
@@ -29,18 +30,34 @@ export default function ChefScreen() {
     const fetchChats = useCallback(() => {
         if (!userId) return;
         setLoading(true);
-        fetch(`https://familycooksclean.onrender.com/ai/chats?user_id=${userId}`)
+        
+        // Build URL with search query if provided
+        let url = `https://familycooksclean.onrender.com/ai/chats?user_id=${userId}`;
+        if (searchQuery.trim()) {
+            url += `&q=${encodeURIComponent(searchQuery.trim())}`;
+        }
+        
+        fetch(url)
             .then(res => res.json())
             .then(data => {
                 setChats(data);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
-    }, [userId]);
+    }, [userId, searchQuery]);
 
     useEffect(() => {
         fetchChats();
     }, [fetchChats]);
+
+    // Debounced search effect
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            fetchChats();
+        }, 300); // 300ms debounce
+
+        return () => clearTimeout(timeout);
+    }, [searchQuery]);
 
     useFocusEffect(
         useCallback(() => {
@@ -97,8 +114,16 @@ export default function ChefScreen() {
                     style={styles.searchInput}
                     placeholder="Search Chats"
                     placeholderTextColor="#888"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
                 />
-                <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
+                {searchQuery ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                        <Ionicons name="close-circle" size={20} color="#888" />
+                    </TouchableOpacity>
+                ) : (
+                    <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
+                )}
             </View>
             {/* Start New Chat Button */}
             <TouchableOpacity
@@ -131,7 +156,11 @@ export default function ChefScreen() {
                 }}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
-                ListEmptyComponent={<CustomText style={{ textAlign: 'center', marginTop: 40 }}>No chats yet. Start a new chat!</CustomText>}
+                ListEmptyComponent={
+                    <CustomText style={{ textAlign: 'center', marginTop: 40 }}>
+                        {searchQuery ? `No chats found for "${searchQuery}"` : 'No chats yet. Start a new chat!'}
+                    </CustomText>
+                }
             />
         </View>
     );
@@ -173,6 +202,10 @@ const styles = StyleSheet.create({
     },
     searchIcon: {
         marginLeft: 8,
+    },
+    clearButton: {
+        marginLeft: 8,
+        padding: 2,
     },
     listContent: {
         paddingHorizontal: 16,

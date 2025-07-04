@@ -140,16 +140,22 @@ For non-recipe responses, respond as normal but include "is_recipe": false.
     }
 });
 
-// GET /ai/chats?user_id=...
+// GET /ai/chats?user_id=...&q=...
 router.get('/chats', async (req, res) => {
-    const { user_id } = req.query;
+    const { user_id, q } = req.query;
     if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
 
-    const { data, error } = await supabase
+    let query = supabase
         .from('chats')
         .select('*')
-        .eq('user_id', user_id)
-        .order('created_at', { ascending: false });
+        .eq('user_id', user_id);
+
+    // Add search filter if query parameter is provided
+    if (q && q.trim()) {
+        query = query.ilike('summary', `%${q.trim()}%`);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);

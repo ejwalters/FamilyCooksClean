@@ -94,6 +94,15 @@ export default function HomeScreen() {
     Keyboard.dismiss();
   }
 
+  // In the render, adjust the style for searchBarExpanded based on results
+  const hasResults = Array.isArray(searchResults) && searchResults.length > 0;
+  const isLoading = searching;
+  const resultCount = Array.isArray(searchResults) ? searchResults.length : 0;
+  let dynamicExpandStyle = styles.searchBarExpanded;
+  if (!hasResults && !isLoading) dynamicExpandStyle = styles.searchBarNoResults;
+  else if (resultCount <= 2) dynamicExpandStyle = styles.searchBarSmallResults;
+  else if (resultCount <= 4) dynamicExpandStyle = styles.searchBarMediumResults;
+
   return (
     <TouchableWithoutFeedback onPress={closeDropdown} accessible={false}>
       <View style={{ flex: 1 }}>
@@ -105,7 +114,10 @@ export default function HomeScreen() {
             />
             <CustomText style={styles.logoText}>LOGO</CustomText>
           </View>
-          <View style={[styles.searchBarContainer, (searchTouched && search.length > 0) && styles.searchBarExpanded]}>
+          <View style={[
+            styles.searchBarContainer,
+            (searchTouched && search.length > 0) && dynamicExpandStyle
+          ]}>
             {/* Input row with search icon */}
             <View style={styles.inputRow}>
               <TextInput
@@ -236,7 +248,37 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     justifyContent: 'flex-start',
     paddingHorizontal: 20,
-    paddingVertical: 20
+    paddingVertical: 20,
+  },
+  searchBarNoResults: {
+    minHeight: 70,
+    paddingVertical: 8,
+    paddingBottom: 8,
+    height: 'auto',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+  },
+  searchBarSmallResults: {
+    minHeight: 90,
+    paddingVertical: 10,
+    paddingBottom: 8,
+    height: 'auto',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+  },
+  searchBarMediumResults: {
+    minHeight: 130,
+    paddingVertical: 16,
+    paddingBottom: 8,
+    height: 'auto',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
   },
   inputRow: {
     flexDirection: 'row',
@@ -258,6 +300,7 @@ const styles = StyleSheet.create({
     color: '#444',
     marginBottom: 8,
     fontWeight: '600',
+    marginTop: 20,
   },
   aiChefButton: {
     backgroundColor: '#6DA98C',
