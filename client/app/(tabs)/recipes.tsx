@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image, ActivityIndicator } from 'react-native';
+import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // or your icon library
 import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
@@ -10,14 +10,41 @@ const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
 const TAB_BAR_HEIGHT = 90;
 
+function ForkKnifeLoading() {
+    const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+    React.useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+            ])
+        );
+        loop.start();
+        return () => loop.stop();
+    }, [pulseAnim]);
+
+    return (
+        <View style={{ alignItems: 'center', marginTop: 48, marginBottom: 24 }}>
+            <Animated.Image
+                source={require('../../assets/images/fork-knife.png')}
+                style={{ width: 44, height: 44, tintColor: '#8CBEC7', transform: [{ scale: pulseAnim }] }}
+                resizeMode="contain"
+            />
+        </View>
+    );
+}
+
 export default function RecipesScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [recipes, setRecipes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [searching, setSearching] = useState(false);
 
-    useFocusEffect(
-        useCallback(() => {
+    useEffect(() => {
+        if (search === '') {
             setLoading(true);
             fetch('https://familycooksclean.onrender.com/recipes/list?limit=20')
                 .then(res => res.json())
@@ -26,8 +53,20 @@ export default function RecipesScreen() {
                     setLoading(false);
                 })
                 .catch(() => setLoading(false));
-        }, [])
-    );
+            return;
+        }
+        setSearching(true);
+        const timeout = setTimeout(() => {
+            fetch(`https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(search)}`)
+                .then(res => res.json())
+                .then(data => {
+                    setRecipes(data);
+                    setSearching(false);
+                })
+                .catch(() => setSearching(false));
+        }, 400);
+        return () => clearTimeout(timeout);
+    }, [search]);
 
     function openAddRecipe() {
         router.push('/add-recipe');
@@ -46,6 +85,8 @@ export default function RecipesScreen() {
                     placeholder="Search Recipes"
                     style={styles.searchBar}
                     placeholderTextColor="#A0A0A0"
+                    value={search}
+                    onChangeText={setSearch}
                 />
                 <Ionicons name="search" size={22} style={styles.searchIcon} />
             </View>
@@ -68,8 +109,8 @@ export default function RecipesScreen() {
             <CustomText style={styles.sectionTitle}>Recipes</CustomText>
 
             {/* Recipes List */}
-            {loading ? (
-                <ActivityIndicator size="large" color="#6DA98C" style={{ marginTop: 40 }} />
+            {((loading && recipes.length === 0) || searching) ? (
+                <ForkKnifeLoading />
             ) : (
                 <FlatList
                     data={recipes}
