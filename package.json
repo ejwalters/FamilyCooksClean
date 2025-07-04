@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.2"
+    "@supabase/supabase-js": "^2.50.3",
+    "expo": "^53.0.17"
   }
 }

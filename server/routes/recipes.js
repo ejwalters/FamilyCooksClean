@@ -21,13 +21,18 @@ router.post('/add', async (req, res) => {
 
 // GET /recipes/list
 router.get('/list', async (req, res) => {
-    let { limit } = req.query;
+    let { limit, q } = req.query;
     limit = Math.min(parseInt(limit) || 20, 100);
-    const { data, error } = await supabase
+    let query = supabase
         .from('recipes')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
+    if (q) {
+        // Search in title, tags, or ingredients (case-insensitive, partial match)
+        query = query.or(`title.ilike.%${q}%,tags.ilike.%${q}%,ingredients.ilike.%${q}%`);
+    }
+    const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
