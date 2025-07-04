@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Modal, Animated, Pressable, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Modal, Animated, Pressable, Keyboard, TouchableWithoutFeedback, LayoutAnimation, Platform, UIManager } from 'react-native';
 import CustomText from '../../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -22,8 +22,8 @@ export default function HomeScreen() {
   const [searching, setSearching] = useState(false);
   const [searchTouched, setSearchTouched] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const dropdownAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const dropdownRef = useRef<View>(null);
 
   useEffect(() => {
     if (!search) {
@@ -44,6 +44,23 @@ export default function HomeScreen() {
     return () => clearTimeout(timeout);
   }, [search]);
 
+  // Animate dropdown in/out
+  useEffect(() => {
+    if (searchTouched && search.length > 0) {
+      Animated.timing(dropdownAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(dropdownAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [searchTouched, search]);
+
   // Pulsing animation for fork-knife
   useEffect(() => {
     if (searching) {
@@ -57,6 +74,18 @@ export default function HomeScreen() {
       pulseAnim.setValue(1);
     }
   }, [searching]);
+
+  // Enable LayoutAnimation on Android
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  // Animate search bar expansion
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  }, [search, searchResults, searching]);
 
   function closeDropdown() {
     setSearch('');
@@ -76,47 +105,58 @@ export default function HomeScreen() {
             />
             <CustomText style={styles.logoText}>LOGO</CustomText>
           </View>
-          <View style={styles.searchBarContainer}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search Recipes"
-              placeholderTextColor="#888"
-              value={search}
-              onChangeText={t => { setSearch(t); setSearchTouched(true); }}
-              autoCorrect={false}
-              autoCapitalize="none"
-              onFocus={() => setSearchTouched(true)}
-            />
-            <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
-          </View>
-          {/* Search Dropdown */}
-          {searchTouched && search.length > 0 && (
-            <View style={styles.dropdown} ref={dropdownRef}>
-              {searching ? (
-                <View style={styles.loadingBox}>
-                  <Animated.Image
-                    source={require('../../assets/images/fork-knife.png')}
-                    style={{ width: 40, height: 40, tintColor: '#8CBEC7', transform: [{ scale: pulseAnim }] }}
-                  />
-                  <CustomText style={{ color: '#8CBEC7', marginTop: 8, fontWeight: '700' }}>Searching...</CustomText>
-                </View>
-              ) : !Array.isArray(searchResults) || searchResults.length === 0 ? (
-                <CustomText style={{ textAlign: 'center', color: '#6C757D', marginTop: 16, marginBottom: 12 }}>No recipes found.</CustomText>
-              ) : (
-                <View style={{ maxHeight: 260 }}>
-                  {searchResults.slice(0, 15).map((item, idx) => (
-                    <TouchableOpacity
-                      key={item.id || item.title || idx}
-                      onPress={() => { router.push({ pathname: '/recipe-detail', params: { id: item.id } }); closeDropdown(); }}
-                      style={styles.dropdownItem}
-                    >
-                      <CustomText style={styles.dropdownItemText}>{item.title}</CustomText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+          <View style={[styles.searchBarContainer, (searchTouched && search.length > 0) && styles.searchBarExpanded]}>
+            {/* Input row with search icon */}
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search Recipes"
+                placeholderTextColor="#888"
+                value={search}
+                onChangeText={t => { setSearch(t); setSearchTouched(true); }}
+                autoCorrect={false}
+                autoCapitalize="none"
+                onFocus={() => setSearchTouched(true)}
+              />
+              <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
             </View>
-          )}
+            {/* Results inside the search bar */}
+            {searchTouched && search.length > 0 && (
+              <View style={styles.resultsList}>
+                {searching ? (
+                  <View style={styles.loadingBox}>
+                    <Animated.Image
+                      source={require('../../assets/images/fork-knife.png')}
+                      style={{ width: 40, height: 40, tintColor: '#8CBEC7', transform: [{ scale: pulseAnim }] }}
+                    />
+                    <CustomText style={{ color: '#8CBEC7', marginTop: 8, fontWeight: '700' }}>Searching...</CustomText>
+                  </View>
+                ) : !Array.isArray(searchResults) || searchResults.length === 0 ? (
+                  <CustomText style={{ textAlign: 'center', color: '#6C757D', marginTop: 16, marginBottom: 12 }}>
+                    No results for '{search}'
+                  </CustomText>
+                ) : (
+                  <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
+                    {searchResults.slice(0, 8).map((item, idx) => (
+                      <TouchableOpacity
+                        key={item.id || item.title || idx}
+                        onPress={() => { router.push({ pathname: '/recipe-detail', params: { id: item.id } }); closeDropdown(); }}
+                        style={styles.resultItem}
+                        activeOpacity={0.85}
+                      >
+                        <View style={styles.dropdownItemRow}>
+                          <Image source={require('../../assets/images/fork-knife.png')} style={styles.dropdownIcon} />
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <CustomText style={styles.dropdownItemText}>{item.title}</CustomText>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+          </View>
           <CustomText style={styles.sectionPrompt}>Stuck without a dinner plan?</CustomText>
           <TouchableOpacity style={styles.aiChefButton}>
             <CustomText style={styles.aiChefButtonText}>Ask The AI Chef</CustomText>
@@ -182,9 +222,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 20,
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 0,
     height: 52,
     shadowColor: 'transparent',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  searchBarExpanded: {
+    minHeight: 180,
+    paddingBottom: 8,
+    height: 'auto',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    paddingVertical: 20
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 0,
   },
   searchInput: {
     flex: 1,
@@ -250,28 +308,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  dropdown: {
-    position: 'absolute',
-    top: 132, // below search bar
-    left: 20,
-    right: 20,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.10,
-    shadowRadius: 18,
-    elevation: 12,
-    zIndex: 10,
-    minHeight: 40,
-    maxHeight: 300,
-  },
   loadingBox: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 18,
+  },
+  resultsList: {
+    width: '100%',
+    backgroundColor: 'transparent',
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    overflow: 'hidden',
+    marginTop: 0,
+    paddingTop: 0,
+  },
+  resultItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F6F9',
+    backgroundColor: 'transparent',
   },
   dropdownItem: {
     paddingVertical: 14,
@@ -279,9 +335,39 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F6F9',
   },
+  dropdownItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dropdownIcon: {
+    width: 24,
+    height: 24,
+    tintColor: '#8CBEC7',
+    borderRadius: 8,
+    backgroundColor: '#F1F6F9',
+  },
   dropdownItemText: {
     fontSize: 16,
     color: '#222',
     fontWeight: '600',
+  },
+  dropdownLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingTop: 0,
+    paddingBottom: 4,
+  },
+  dropdownLabelText: {
+    fontSize: 15,
+    color: '#8CBEC7',
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    marginHorizontal: 12,
+    marginBottom: 2,
   },
 });
