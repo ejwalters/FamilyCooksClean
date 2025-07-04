@@ -29,8 +29,7 @@ router.get('/list', async (req, res) => {
         .order('created_at', { ascending: false })
         .limit(limit);
     if (q) {
-        // Search in title, tags, or ingredients (case-insensitive, partial match)
-        query = query.or(`title.ilike.%${q}%,tags.ilike.%${q}%,ingredients.ilike.%${q}%`);
+        query = query.ilike('title', `%${q}%`);
     }
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
