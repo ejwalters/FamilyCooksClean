@@ -60,10 +60,15 @@ export default function RecipeDetailScreen() {
     console.log('params', params);
     if (!isAIRecipe && params.id) {
       setLoading(true);
-      fetch(`https://familycooksclean.onrender.com/recipes/${params.id}`)
+      const url = userId 
+        ? `https://familycooksclean.onrender.com/recipes/${params.id}?user_id=${userId}`
+        : `https://familycooksclean.onrender.com/recipes/${params.id}`;
+      fetch(url)
         .then(res => res.json())
         .then(data => {
           setRecipe(data);
+          // Set favorited state from API response
+          setFavorited(data.is_favorited || false);
           setLoading(false);
         })
         .catch(() => setLoading(false));
@@ -104,7 +109,7 @@ export default function RecipeDetailScreen() {
       });
       setLoading(false);
     }
-  }, [params.id, isAIRecipe]);
+  }, [params.id, isAIRecipe, userId]);
 
   function ensureArray(val: any, fallback: string[]): string[] {
     if (Array.isArray(val)) {
@@ -211,17 +216,6 @@ export default function RecipeDetailScreen() {
       if (data?.user) setUserId(data.user.id);
     });
   }, []);
-
-  // Check if this recipe is favorited after userId and recipe are loaded
-  useEffect(() => {
-    if (!userId || !recipe?.id) return;
-    fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
-      .then(res => res.json())
-      .then(data => {
-        const isFav = data.some((r: any) => r.id === recipe.id);
-        setFavorited(isFav);
-      });
-  }, [userId, recipe?.id]);
 
   // Handler for heart icon
   const handleToggleFavorite = async () => {

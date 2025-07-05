@@ -21,7 +21,7 @@ router.post('/add', async (req, res) => {
 
 // GET /recipes/list
 router.get('/list', async (req, res) => {
-    let { limit, q } = req.query;
+    let { limit, q, user_id } = req.query;
     limit = Math.min(parseInt(limit) || 20, 100);
     let query = supabase
         .from('recipes')
@@ -33,12 +33,31 @@ router.get('/list', async (req, res) => {
     }
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
+    
+    // If user_id is provided, check which recipes are favorited
+    if (user_id && data.length > 0) {
+        const recipeIds = data.map(r => r.id);
+        const { data: favs, error: favsError } = await supabase
+            .from('favorites')
+            .select('recipe_id')
+            .eq('user_id', user_id)
+            .in('recipe_id', recipeIds);
+        
+        if (!favsError) {
+            const favoritedIds = new Set(favs.map(f => f.recipe_id));
+            data.forEach(recipe => {
+                recipe.is_favorited = favoritedIds.has(recipe.id);
+            });
+        }
+    }
+    
     res.json(data);
 });
 
 // GET /recipes/:id
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
+    const { user_id } = req.query;
     if (!id) return res.status(400).json({ error: 'Missing recipe id' });
     const { data, error } = await supabase
         .from('recipes')
@@ -47,6 +66,23 @@ router.get('/:id', async (req, res) => {
         .single();
     if (error) return res.status(500).json({ error: error.message });
     if (!data) return res.status(404).json({ error: 'Recipe not found' });
+    
+    // If user_id is provided, check if this recipe is favorited
+    if (user_id) {
+        const { data: fav, error: favError } = await supabase
+            .from('favorites')
+            .select('recipe_id')
+            .eq('user_id', user_id)
+            .eq('recipe_id', id)
+            .single();
+        
+        if (!favError && fav) {
+            data.is_favorited = true;
+        } else {
+            data.is_favorited = false;
+        }
+    }
+    
     res.json(data);
 });
 

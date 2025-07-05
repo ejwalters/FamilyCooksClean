@@ -61,11 +61,22 @@ export default function RecipesScreen() {
 
         if (search === '') {
             setLoading(true);
-            fetch('https://familycooksclean.onrender.com/recipes/list?limit=20')
+            const url = userId 
+                ? `https://familycooksclean.onrender.com/recipes/list?limit=20&user_id=${userId}`
+                : 'https://familycooksclean.onrender.com/recipes/list?limit=20';
+            fetch(url)
                 .then(res => res.json())
                 .then(data => {
                     if (fetchId === fetchIdRef.current) {
                         setRecipes(data);
+                        // Set favorited state from API response
+                        const favMap: { [id: string]: boolean } = {};
+                        data.forEach((r: any) => {
+                            if (r.is_favorited) {
+                                favMap[r.id] = true;
+                            }
+                        });
+                        setFavorited(favMap);
                         setLoading(false);
                         setSearching(false);
                     }
@@ -80,11 +91,22 @@ export default function RecipesScreen() {
         }
         setSearching(true);
         const timeout = setTimeout(() => {
-            fetch(`https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(search)}`)
+            const url = userId 
+                ? `https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(search)}&user_id=${userId}`
+                : `https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(search)}`;
+            fetch(url)
                 .then(res => res.json())
                 .then(data => {
                     if (fetchId === fetchIdRef.current) {
                         setRecipes(data);
+                        // Set favorited state from API response
+                        const favMap: { [id: string]: boolean } = {};
+                        data.forEach((r: any) => {
+                            if (r.is_favorited) {
+                                favMap[r.id] = true;
+                            }
+                        });
+                        setFavorited(favMap);
                         setSearching(false);
                         setLoading(false);
                     }
@@ -97,22 +119,7 @@ export default function RecipesScreen() {
                 });
         }, 400);
         return () => clearTimeout(timeout);
-    }, [search]);
-
-    useEffect(() => {
-        if (!userId || recipes.length === 0) return;
-        fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
-            .then(res => res.json())
-            .then(data => {
-                const favMap: { [id: string]: boolean } = {};
-                data.forEach((r: any) => {
-                    favMap[r.id] = true;
-                });
-                setFavorited(favMap);
-                setFavoritesLoaded(true);
-            })
-            .catch(() => setFavoritesLoaded(true));
-    }, [userId, recipes]);
+    }, [search, userId]);
 
     const handleToggleFavorite = async (recipeId: string) => {
         if (!userId) return;

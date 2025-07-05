@@ -5,6 +5,7 @@ import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
 import { Heart, HeartIcon } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
@@ -53,31 +54,52 @@ export default function FavoritesScreen() {
         });
     }, []);
 
-    // Fetch favorites from backend
-    useEffect(() => {
+    // Fetch favorites function
+    const fetchFavorites = () => {
         if (!userId) return;
+        console.log('Favorites screen: Fetching favorites for user:', userId);
         fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
             .then(res => res.json())
             .then(data => {
-                setFavorites(data);
-                setFilteredFavorites(data);
+                console.log('Favorites screen: API response:', data);
+                // Ensure data is always an array
+                const favoritesArray = Array.isArray(data) ? data : [];
+                console.log('Favorites screen: Processed array:', favoritesArray);
+                setFavorites(favoritesArray);
+                setFilteredFavorites(favoritesArray);
             })
-            .catch(() => {
+            .catch((err) => {
+                console.error('Favorites screen: Error fetching favorites:', err);
                 setFavorites([]);
                 setFilteredFavorites([]);
             });
+    };
+
+    // Fetch favorites from backend
+    useEffect(() => {
+        fetchFavorites();
     }, [userId]);
+
+    // Force reload favorites when screen comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            console.log('Favorites screen: Focus effect triggered');
+            fetchFavorites();
+        }, [userId])
+    );
 
     // Search effect (filter favorites)
     useEffect(() => {
         if (search === '') {
-            setFilteredFavorites(favorites);
+            setFilteredFavorites(favorites || []);
             setSearching(false);
             return;
         }
         setSearching(true);
         const timeout = setTimeout(() => {
-            const filtered = favorites.filter(r =>
+            // Ensure favorites is an array before filtering
+            const favoritesArray = Array.isArray(favorites) ? favorites : [];
+            const filtered = favoritesArray.filter(r =>
                 r.title.toLowerCase().includes(search.toLowerCase())
             );
             setFilteredFavorites(filtered);
