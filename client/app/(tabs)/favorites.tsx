@@ -56,15 +56,26 @@ export default function FavoritesScreen() {
 
     // Fetch favorites function
     const fetchFavorites = () => {
-        if (!userId) return;
+        if (!userId) {
+            console.log('Favorites screen: No userId, skipping fetch');
+            return;
+        }
         console.log('Favorites screen: Fetching favorites for user:', userId);
-        fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
-            .then(res => res.json())
+        const url = `https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`;
+        console.log('Favorites screen: URL:', url);
+        fetch(url)
+            .then(res => {
+                console.log('Favorites screen: Response status:', res.status);
+                return res.json();
+            })
             .then(data => {
                 console.log('Favorites screen: API response:', data);
+                console.log('Favorites screen: Response type:', typeof data);
+                console.log('Favorites screen: Is array?', Array.isArray(data));
                 // Ensure data is always an array
                 const favoritesArray = Array.isArray(data) ? data : [];
                 console.log('Favorites screen: Processed array:', favoritesArray);
+                console.log('Favorites screen: Array length:', favoritesArray.length);
                 setFavorites(favoritesArray);
                 setFilteredFavorites(favoritesArray);
             })

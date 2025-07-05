@@ -89,6 +89,7 @@ router.get('/:id', async (req, res) => {
 // GET /recipes/favorites?user_id=...
 router.get('/favorites', async (req, res) => {
     const { user_id } = req.query;
+    console.log('Favorites endpoint called with user_id:', user_id);
     if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
 
     // Get all favorite recipe_ids for this user
@@ -97,10 +98,15 @@ router.get('/favorites', async (req, res) => {
         .select('recipe_id')
         .eq('user_id', user_id);
 
+    console.log('Favorites query result:', { favs, favsError });
     if (favsError) return res.status(500).json({ error: favsError.message });
 
     const recipeIds = favs.map(f => f.recipe_id);
-    if (recipeIds.length === 0) return res.json([]); // No favorites
+    console.log('Recipe IDs found:', recipeIds);
+    if (recipeIds.length === 0) {
+        console.log('No favorites found, returning empty array');
+        return res.json([]); // No favorites
+    }
 
     // Get the full recipe details for these IDs
     const { data: recipes, error: recipesError } = await supabase
@@ -108,8 +114,10 @@ router.get('/favorites', async (req, res) => {
         .select('*')
         .in('id', recipeIds);
 
+    console.log('Recipes query result:', { recipes, recipesError });
     if (recipesError) return res.status(500).json({ error: recipesError.message });
 
+    console.log('Returning recipes:', recipes);
     res.json(recipes);
 });
 
