@@ -56,6 +56,23 @@ export default function RecipeDetailScreen() {
   const [favorited, setFavorited] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
+  const editTags = [
+    'Vegan',
+    'Vegetarian',
+    'Gluten-free',
+    'Dairy-free',
+    'High Protein',
+    'Lower Calories',
+    'Kid-friendly',
+    'Simplify',
+  ];
+  const [selectedEditTags, setSelectedEditTags] = useState<string[]>([]);
+  const [editPrompt, setEditPrompt] = useState('');
+
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   useEffect(() => {
     console.log('params', params);
     if (!isAIRecipe && params.id) {
@@ -340,68 +357,6 @@ export default function RecipeDetailScreen() {
               <View key={idx} style={styles.tag}><CustomText style={styles.tagText}>{tag}</CustomText></View>
             ))}
           </View>
-          {/* Cooking Timer or Button */}
-          {!cooking ? (
-            <TouchableOpacity style={styles.cookButton} onPress={handleStartCooking}>
-              <CustomText style={styles.cookButtonText}>Start Cooking</CustomText>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.timerBarRow}>
-              <Animated.View style={[styles.timerBox, { transform: [{ scale: timerRunning ? pulseAnim : 1 }] }]}>
-                <CustomText style={styles.timerText}>{formatTime(timer)}</CustomText>
-                {!timerRunning && <Ionicons name="pause-circle" size={22} color="#fff" style={{ marginLeft: 4 }} />}
-              </Animated.View>
-              <TouchableOpacity style={styles.timerOptionsButton} onPress={() => setShowTimerOptions(true)}>
-                <Ionicons name="ellipsis-horizontal" size={26} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          )}
-          {isAIRecipe && saveStatus !== 'success' && (
-            <TouchableOpacity style={styles.saveAIButton} onPress={handleSaveAIRecipe} disabled={saveStatus === 'saving'}>
-              <CustomText style={styles.saveAIButtonText}>
-                {saveStatus === 'saving' ? 'Saving...' : 'Save AI Recipe'}
-              </CustomText>
-            </TouchableOpacity>
-          )}
-          {saveStatus === 'success' && (
-            <CustomText style={[styles.saveAIButtonText, { color: '#7BA892', textAlign: 'center', marginTop: 8 }]}>Recipe saved!</CustomText>
-          )}
-          {/* Timer Options Modal */}
-          <Modal
-            visible={showTimerOptions}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowTimerOptions(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <Animated.View style={styles.modalContent}>
-                {timerRunning ? (
-                  <TouchableOpacity style={[styles.modalButton, styles.modalButtonGold]} onPress={() => { setTimerRunning(false); setShowTimerOptions(false); }}>
-                    <Ionicons name="pause" size={22} color="#fff" style={{ marginRight: 8 }} />
-                    <CustomText style={styles.modalButtonText}>Pause</CustomText>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={[styles.modalButton, styles.modalButtonGold]} onPress={() => { setTimerRunning(true); setShowTimerOptions(false); }}>
-                    <Ionicons name="play" size={22} color="#fff" style={{ marginRight: 8 }} />
-                    <CustomText style={styles.modalButtonText}>Resume</CustomText>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={[styles.modalButton, styles.modalButtonRed]} onPress={() => {
-                  setCooking(false);
-                  setTimerRunning(false);
-                  setTimer(0);
-                  setShowTimerOptions(false);
-                }}>
-                  <Ionicons name="stop" size={22} color="#fff" style={{ marginRight: 8 }} />
-                  <CustomText style={styles.modalButtonText}>End Recipe</CustomText>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.modalButtonGray]} onPress={() => setShowTimerOptions(false)}>
-                  <Ionicons name="close" size={22} color="#6C757D" style={{ marginRight: 8 }} />
-                  <CustomText style={[styles.modalButtonText, { color: '#6C757D' }]}>Cancel</CustomText>
-                </TouchableOpacity>
-              </Animated.View>
-            </View>
-          </Modal>
           <CustomText style={styles.sectionTitle}>Ingredients</CustomText>
           {ingredients.map((ing: string, idx: number) => (
             <TouchableOpacity
@@ -485,35 +440,254 @@ export default function RecipeDetailScreen() {
               <Ionicons name="close" size={24} color="#6C757D" />
             </TouchableOpacity>
             <CustomText style={styles.chefSheetTitle}>How do you want to change the recipe?</CustomText>
-            <View style={styles.chefSheetFiltersRow}>
-              {chefFilters.map((filter, idx) => (
-                <View key={filter} style={styles.chefSheetFilterChip}><CustomText style={styles.chefSheetFilterText}>{filter}</CustomText></View>
-              ))}
+            <View style={{ marginBottom: 8 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ alignItems: 'center', height: 43 }}
+              >
+                {editTags.map((tag, idx) => (
+                  <TouchableOpacity
+                    key={tag}
+                    style={[
+                      styles.filterChip,
+                      idx === 0 && { marginLeft: 0 },
+                      idx === editTags.length - 1 && { marginRight: 0 },
+                      selectedEditTags.includes(tag) && { backgroundColor: '#E2B36A' }
+                    ]}
+                    onPress={() => {
+                      setSelectedEditTags(selected =>
+                        selected.includes(tag)
+                          ? selected.filter(t => t !== tag)
+                          : [...selected, tag]
+                      );
+                    }}
+                  >
+                    <CustomText style={styles.filterText}>{tag}</CustomText>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
-            <View style={styles.chefSheetInputBox}>
-              <TextInput
-                style={styles.chefSheetInput}
-                value={chefInput}
-                onChangeText={setChefInput}
-                placeholder="Type your request..."
-                placeholderTextColor="#A0A0A0"
-                multiline
-              />
-            </View>
-            <CustomText style={styles.chefSheetProposedTitle}>Proposed Changes</CustomText>
-            <View style={styles.chefSheetProposedRow}>
-              <CustomText style={styles.chefSheetProposedColTitle}>Swap</CustomText>
-              <CustomText style={styles.chefSheetProposedColTitle}>For</CustomText>
-            </View>
-            {chefSwaps.map((swap, idx) => (
-              <View key={idx} style={styles.chefSheetProposedRow}>
-                <View style={styles.chefSheetSwapChip}><CustomText style={styles.chefSheetSwapText}>{swap.swap}</CustomText></View>
-                <View style={styles.chefSheetForChip}><CustomText style={styles.chefSheetForText}>{swap.for}</CustomText></View>
-              </View>
-            ))}
-            <TouchableOpacity style={styles.chefSheetAcceptButton} onPress={() => setShowChefSheet(false)}>
-              <CustomText style={styles.chefSheetAcceptButtonText}>Accept Changes</CustomText>
+            <TextInput
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 16,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                fontSize: 15,
+                marginBottom: 8,
+                borderWidth: 1,
+                borderColor: '#E2E2E2',
+              }}
+              placeholder="E.g. Make this gluten-free and add more veggies"
+              value={editPrompt}
+              onChangeText={setEditPrompt}
+            />
+            <TouchableOpacity
+              style={{
+                backgroundColor: (selectedEditTags.length > 0 || editPrompt.trim()) ? '#7BA892' : '#B0B0B0',
+                borderRadius: 16,
+                paddingVertical: 12,
+                alignItems: 'center',
+                marginBottom: 16,
+              }}
+              disabled={!(selectedEditTags.length > 0 || editPrompt.trim())}
+              onPress={async () => {
+                setAiLoading(true);
+                setAiError(null);
+                setAiResult(null);
+                try {
+                  const res = await fetch('https://familycooksclean.onrender.com/ai/transform-recipe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      recipe: {
+                        title: recipe.title,
+                        time: recipe.time,
+                        tags: tags,
+                        ingredients: ingredients,
+                        steps: steps,
+                      },
+                      tags: selectedEditTags,
+                      prompt: editPrompt,
+                    }),
+                  });
+                  if (!res.ok) throw new Error('AI request failed');
+                  const data = await res.json();
+                  setAiResult(data);
+                } catch (err: any) {
+                  setAiError(err.message || 'Failed to get AI response');
+                } finally {
+                  setAiLoading(false);
+                }
+              }}
+            >
+              <CustomText style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                Suggest Changes
+              </CustomText>
             </TouchableOpacity>
+            {aiLoading && (
+              <View style={{ alignItems: 'center', marginVertical: 16 }}>
+                <ActivityIndicator size="large" color="#7BA892" />
+                <CustomText style={{ marginTop: 8 }}>Thinking...</CustomText>
+              </View>
+            )}
+            {aiError && (
+              <CustomText style={{ color: '#E4576A', marginVertical: 8 }}>{aiError}</CustomText>
+            )}
+            {aiResult && (
+              <View style={{ marginTop: 12, marginBottom: 16 }}>
+                <CustomText style={{ fontWeight: '700', fontSize: 16, marginBottom: 4 }}>AI Suggestions</CustomText>
+                <CustomText style={{ color: '#6C757D', marginBottom: 8 }}>{aiResult.summary}</CustomText>
+                {aiResult.swaps && aiResult.swaps.length > 0 && (
+                  <View style={{ marginBottom: 8 }}>
+                    <CustomText style={{ fontWeight: '600', marginBottom: 4 }}>Ingredient Swaps:</CustomText>
+                    {aiResult.swaps.map((swap: any, idx: number) => (
+                      <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                        <CustomText style={{ flex: 1 }}>{swap.original}</CustomText>
+                        <Ionicons name="arrow-forward" size={18} color="#7BA892" style={{ marginHorizontal: 6 }} />
+                        <CustomText style={{ flex: 1, color: '#7BA892' }}>{swap.new}</CustomText>
+                        {swap.amount_change && <CustomText style={{ marginLeft: 6, color: '#E2B36A' }}>{swap.amount_change}</CustomText>}
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <CustomText style={{ fontWeight: '600', marginBottom: 4 }}>Ingredients:</CustomText>
+                {aiResult.newRecipe && (
+                  <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <CustomText style={{ fontWeight: '500', marginBottom: 2 }}>Original</CustomText>
+                      {ingredients.map((ing, idx) => (
+                        <CustomText key={idx} style={{ color: '#888' }}>{ing}</CustomText>
+                      ))}
+                    </View>
+                    <View style={{ width: 16 }} />
+                    <View style={{ flex: 1 }}>
+                      <CustomText style={{ fontWeight: '500', marginBottom: 2 }}>AI Version</CustomText>
+                      {aiResult.newRecipe.ingredients.map((ing: string, idx: number) => (
+                        <CustomText key={idx} style={{ color: '#222' }}>{ing}</CustomText>
+                      ))}
+                    </View>
+                  </View>
+                )}
+                <CustomText style={{ fontWeight: '600', marginBottom: 4 }}>Steps:</CustomText>
+                {aiResult.newRecipe && (
+                  <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <CustomText style={{ fontWeight: '500', marginBottom: 2 }}>Original</CustomText>
+                      {steps.map((step, idx) => (
+                        <CustomText key={idx} style={{ color: '#888' }}>{step}</CustomText>
+                      ))}
+                    </View>
+                    <View style={{ width: 16 }} />
+                    <View style={{ flex: 1 }}>
+                      <CustomText style={{ fontWeight: '500', marginBottom: 2 }}>AI Version</CustomText>
+                      {aiResult.newRecipe.steps.map((step: string, idx: number) => (
+                        <CustomText key={idx} style={{ color: '#222' }}>{step}</CustomText>
+                      ))}
+                    </View>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={{ backgroundColor: '#E2B36A', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginTop: 8 }}
+                  onPress={async () => {
+                    // Save the new recipe and navigate to its detail page
+                    setSaveStatus('saving');
+                    try {
+                      const { data } = await supabase.auth.getUser();
+                      const user_id = data?.user?.id;
+                      if (!user_id) throw new Error('You must be logged in to save recipes.');
+                      const payload = {
+                        user_id,
+                        title: aiResult.newRecipe.title,
+                        time: aiResult.newRecipe.time,
+                        tags: aiResult.newRecipe.tags,
+                        ingredients: aiResult.newRecipe.ingredients,
+                        steps: aiResult.newRecipe.steps,
+                        parent_recipe_id: recipe.id || null,
+                      };
+                      const response = await fetch('https://familycooksclean.onrender.com/recipes/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                      });
+                      if (!response.ok) throw new Error('Failed to save recipe');
+                      const newRecipe = await response.json();
+                      setSaveStatus('success');
+                      setShowChefSheet(false);
+                      router.push({ pathname: '/recipe-detail', params: { id: newRecipe.id, isAI: '1' } });
+                    } catch (err: any) {
+                      setSaveStatus('error');
+                      alert(err.message || 'Failed to save recipe');
+                    }
+                  }}
+                >
+                  <CustomText style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Accept Changes & Save as New Recipe</CustomText>
+                </TouchableOpacity>
+              </View>
+            )}
+            {/* Cooking Timer or Button */}
+            {!cooking ? (
+              <TouchableOpacity style={styles.cookButton} onPress={handleStartCooking}>
+                <CustomText style={styles.cookButtonText}>Start Cooking</CustomText>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.timerBarRow}>
+                <Animated.View style={[styles.timerBox, { transform: [{ scale: timerRunning ? pulseAnim : 1 }] }]}>
+                  <CustomText style={styles.timerText}>{formatTime(timer)}</CustomText>
+                  {!timerRunning && <Ionicons name="pause-circle" size={22} color="#fff" style={{ marginLeft: 4 }} />}
+                </Animated.View>
+                <TouchableOpacity style={styles.timerOptionsButton} onPress={() => setShowTimerOptions(true)}>
+                  <Ionicons name="ellipsis-horizontal" size={26} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
+            {isAIRecipe && saveStatus !== 'success' && (
+              <TouchableOpacity style={styles.saveAIButton} onPress={handleSaveAIRecipe} disabled={saveStatus === 'saving'}>
+                <CustomText style={styles.saveAIButtonText}>
+                  {saveStatus === 'saving' ? 'Saving...' : 'Save AI Recipe'}
+                </CustomText>
+              </TouchableOpacity>
+            )}
+            {saveStatus === 'success' && (
+              <CustomText style={[styles.saveAIButtonText, { color: '#7BA892', textAlign: 'center', marginTop: 8 }]}>Recipe saved!</CustomText>
+            )}
+            {/* Timer Options Modal */}
+            <Modal
+              visible={showTimerOptions}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowTimerOptions(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <Animated.View style={styles.modalContent}>
+                  {timerRunning ? (
+                    <TouchableOpacity style={[styles.modalButton, styles.modalButtonGold]} onPress={() => { setTimerRunning(false); setShowTimerOptions(false); }}>
+                      <Ionicons name="pause" size={22} color="#fff" style={{ marginRight: 8 }} />
+                      <CustomText style={styles.modalButtonText}>Pause</CustomText>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity style={[styles.modalButton, styles.modalButtonGold]} onPress={() => { setTimerRunning(true); setShowTimerOptions(false); }}>
+                      <Ionicons name="play" size={22} color="#fff" style={{ marginRight: 8 }} />
+                      <CustomText style={styles.modalButtonText}>Resume</CustomText>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity style={[styles.modalButton, styles.modalButtonRed]} onPress={() => {
+                    setCooking(false);
+                    setTimerRunning(false);
+                    setTimer(0);
+                    setShowTimerOptions(false);
+                  }}>
+                    <Ionicons name="stop" size={22} color="#fff" style={{ marginRight: 8 }} />
+                    <CustomText style={styles.modalButtonText}>End Recipe</CustomText>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalButton, styles.modalButtonGray]} onPress={() => setShowTimerOptions(false)}>
+                    <Ionicons name="close" size={22} color="#6C757D" style={{ marginRight: 8 }} />
+                    <CustomText style={[styles.modalButtonText, { color: '#6C757D' }]}>Cancel</CustomText>
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            </Modal>
           </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
@@ -905,4 +1079,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  filterChip: {
+    backgroundColor: '#7BA892',
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 4,
+    height: 35,
+    minHeight: 35,
+    maxHeight: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  filterText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 }); 

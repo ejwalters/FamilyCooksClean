@@ -175,6 +175,74 @@ router.get('/messages', async (req, res) => {
     res.json(data);
 });
 
+// POST /ai/transform-recipe
+router.post('/transform-recipe', async (req, res) => {
+    const { recipe, tags, prompt } = req.body;
+    if (!recipe || (!tags && !prompt)) {
+        return res.status(400).json({ error: 'Missing recipe or edit instructions' });
+    }
+
+    // Compose the system prompt for OpenAI
+    const systemPrompt = {
+        role: 'system',
+        content: `
+You are an expert AI chef. Given a recipe and a user request (tags and/or prompt), suggest ingredient swaps and step changes to meet the user's needs.
+
+Respond ONLY with a JSON object with these fields:
+- swaps: array of { original: string, new: string, amount_change: string (optional) }
+- summary: string (a short summary of the changes)
+- newRecipe: object with the following fields:
+  - title: string
+  - time: string
+  - tags: array of strings
+  - ingredients: array of strings (the full new ingredient list)
+  - steps: array of strings (the full new step list)
+
+Do not include any text outside the JSON object. If no changes are needed, return an empty swaps array and the original recipe as newRecipe.
+
+Example:
+{
+  "swaps": [
+    { "original": "1 cup milk", "new": "1 cup oat milk", "amount_change": null }
+  ],
+  "summary": "Made the recipe vegan by swapping milk.",
+  "newRecipe": {
+    "title": "Vegan Pancakes",
+    "time": "30 min",
+    "tags": ["Vegan", "Breakfast"],
+    "ingredients": ["1 cup oat milk", "2 cups flour"],
+    "steps": ["Mix oat milk and flour.", "Cook on skillet."]
+  }
+}
+`
+    };
+
+    // Compose the user message
+    const userMessage = {
+        role: 'user',
+        content: `Here is the recipe:\n${JSON.stringify(recipe, null, 2)}\n\nTags: ${tags ? tags.join(', ') : ''}\nPrompt: ${prompt || ''}`
+    };
+
+    try {
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4',
+            messages: [systemPrompt, userMessage],
+            temperature: 0.7,
+        });
+        const aiResponse = completion.choices[0].message.content;
+        // Try to parse the response as JSON
+        let result;
+        try {
+            result = JSON.parse(aiResponse);
+        } catch (e) {
+            return res.status(500).json({ error: 'AI response was not valid JSON', raw: aiResponse });
+        }
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 async function generateChatSummary(messages) {
     const prompt = `
 Summarize the following conversation in a few keywords for a chat history list. Focus on the main topic, recipe, or user request. If the chat is mostly casual or contains no recipe, summarize the general theme.
