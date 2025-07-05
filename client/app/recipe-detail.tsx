@@ -246,6 +246,33 @@ export default function RecipeDetailScreen() {
     }
   };
 
+  // Handler for start cooking
+  const handleStartCooking = async () => {
+    if (!userId || !recipe?.id) return;
+    
+    try {
+      // Call the server to record the cooking start
+      const res = await fetch('https://familycooksclean.onrender.com/recipes/start-cooking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, recipe_id: recipe.id }),
+      });
+      
+      if (!res.ok) {
+        console.error('Failed to record cooking start');
+        // Continue with cooking even if server call fails
+      }
+    } catch (err) {
+      console.error('Error recording cooking start:', err);
+      // Continue with cooking even if server call fails
+    }
+    
+    // Start the cooking timer regardless of server response
+    setCooking(true);
+    setTimerRunning(true);
+    setTimer(0);
+  };
+
   // Show loading spinner while fetching
   if (loading || !recipe) {
     return (
@@ -315,7 +342,7 @@ export default function RecipeDetailScreen() {
           </View>
           {/* Cooking Timer or Button */}
           {!cooking ? (
-            <TouchableOpacity style={styles.cookButton} onPress={() => { setCooking(true); setTimerRunning(true); setTimer(0); }}>
+            <TouchableOpacity style={styles.cookButton} onPress={handleStartCooking}>
               <CustomText style={styles.cookButtonText}>Start Cooking</CustomText>
             </TouchableOpacity>
           ) : (

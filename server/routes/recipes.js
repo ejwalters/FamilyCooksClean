@@ -150,4 +150,68 @@ router.delete('/favorite', async (req, res) => {
     res.json({ success: true });
 });
 
+// POST /recipes/start-cooking
+router.post('/start-cooking', async (req, res) => {
+    const { user_id, recipe_id } = req.body;
+    if (!user_id || !recipe_id) return res.status(400).json({ error: 'Missing user_id or recipe_id' });
+
+    // Insert or update the recently_cooked record
+    const { error } = await supabase
+        .from('recently_cooked')
+        .upsert([{ 
+            user_id, 
+            recipe_id, 
+            cooked_at: new Date().toISOString() 
+        }], { 
+            onConflict: 'user_id,recipe_id',
+            ignoreDuplicates: false 
+        });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+// GET /recipes/recently-cooked?user_id=...
+router.get('/recently-cooked', async (req, res) => {
+    const { user_id, limit = 10 } = req.query;
+    if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
+
+    // Get recently cooked recipes for this user
+    const { data: recent, error: recentError } = await supabase
+        .from('recently_cooked')
+        .select('recipe_id, cooked_at')
+        .eq('user_id', user_id)
+        .order('cooked_at', { ascending: false })
+        .limit(parseInt(limit));
+
+    if (recentError) return res.status(500).json({ error: recentError.message });
+
+    if (recent.length === 0) return res.json([]);
+
+    // Get the full recipe details for these IDs
+    const recipeIds = recent.map(r => r.recipe_id);
+    const { data: recipes, error: recipesError } = await supabase
+        .from('recipes')
+        .select('*')
+        .in('id', recipeIds);
+
+    if (recipesError) return res.status(500).json({ error: recipesError.message });
+
+    // Merge recipe data with cooked_at timestamps
+    const recipesWithTimestamps = recipes.map(recipe => {
+        const recentRecord = recent.find(r => r.recipe_id === recipe.id);
+        return {
+            ...recipe,
+            cooked_at: recentRecord?.cooked_at
+        };
+    });
+
+    // Sort by cooked_at (most recent first)
+    recipesWithTimestamps.sort((a, b) => 
+        new Date(b.cooked_at).getTime() - new Date(a.cooked_at).getTime()
+    );
+
+    res.json(recipesWithTimestamps);
+});
+
 module.exports = router;
