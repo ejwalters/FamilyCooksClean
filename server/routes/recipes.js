@@ -31,6 +31,10 @@ router.get('/list', async (req, res) => {
     if (q) {
         query = query.ilike('title', `%${q}%`);
     }
+    if (req.query.tags) {
+        const tagsArray = req.query.tags.split(',');
+        query = query.contains('tags', tagsArray);
+    }
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
     
@@ -130,6 +134,13 @@ router.get('/recently-cooked', async (req, res) => {
     );
 
     res.json(recipesWithTimestamps);
+});
+
+// GET /recipes/tags/popular
+router.get('/tags/popular', async (req, res) => {
+    const { data, error } = await supabase.rpc('popular_tags');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
 // GET /recipes/:id

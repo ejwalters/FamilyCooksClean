@@ -8,8 +8,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Heart, HeartIcon } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 
-const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
-
 const TAB_BAR_HEIGHT = 90;
 
 function ForkKnifeLoading() {
@@ -48,6 +46,8 @@ export default function RecipesScreen() {
     const [favorited, setFavorited] = useState<{ [id: string]: boolean }>({});
     const [userId, setUserId] = useState<string | null>(null);
     const [favoritesLoaded, setFavoritesLoaded] = useState(false);
+    const [popularTags, setPopularTags] = useState<{ tag: string, count: number }[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data }) => {
@@ -55,21 +55,29 @@ export default function RecipesScreen() {
         });
     }, []);
 
-    const fetchRecipes = useCallback((searchTerm = '') => {
+    useEffect(() => {
+        fetch('https://familycooksclean.onrender.com/recipes/tags/popular')
+            .then(res => res.json())
+            .then(data => setPopularTags(data))
+            .catch(() => setPopularTags([]));
+    }, []);
+
+    const fetchRecipes = useCallback((searchTerm = '', tags: string[] = selectedTags) => {
         fetchIdRef.current += 1;
         const fetchId = fetchIdRef.current;
+        let url = userId
+            ? `https://familycooksclean.onrender.com/recipes/list?limit=20&user_id=${userId}`
+            : 'https://familycooksclean.onrender.com/recipes/list?limit=20';
+        if (searchTerm) url += `&q=${encodeURIComponent(searchTerm)}`;
+        if (tags.length > 0) url += `&tags=${encodeURIComponent(tags.join(','))}`;
 
-        if (searchTerm === '') {
+        if (!searchTerm && tags.length === 0) {
             setLoading(true);
-            const url = userId 
-                ? `https://familycooksclean.onrender.com/recipes/list?limit=20&user_id=${userId}`
-                : 'https://familycooksclean.onrender.com/recipes/list?limit=20';
             fetch(url)
                 .then(res => res.json())
                 .then(data => {
                     if (fetchId === fetchIdRef.current) {
                         setRecipes(data);
-                        // Set favorited state from API response
                         const favMap: { [id: string]: boolean } = {};
                         data.forEach((r: any) => {
                             if (r.is_favorited) {
@@ -91,15 +99,11 @@ export default function RecipesScreen() {
         }
         setSearching(true);
         const timeout = setTimeout(() => {
-            const url = userId 
-                ? `https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(searchTerm)}&user_id=${userId}`
-                : `https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(searchTerm)}`;
             fetch(url)
                 .then(res => res.json())
                 .then(data => {
                     if (fetchId === fetchIdRef.current) {
                         setRecipes(data);
-                        // Set favorited state from API response
                         const favMap: { [id: string]: boolean } = {};
                         data.forEach((r: any) => {
                             if (r.is_favorited) {
@@ -119,17 +123,16 @@ export default function RecipesScreen() {
                 });
         }, 400);
         return () => clearTimeout(timeout);
-    }, [userId]);
+    }, [userId, selectedTags]);
 
     useEffect(() => {
-        fetchRecipes(search);
-    }, [search, fetchRecipes]);
+        fetchRecipes(search, selectedTags);
+    }, [search, selectedTags, fetchRecipes]);
 
     useFocusEffect(
         useCallback(() => {
-            console.log('Recipes screen: Focus effect triggered');
-            fetchRecipes(search);
-        }, [fetchRecipes, search])
+            fetchRecipes(search, selectedTags);
+        }, [fetchRecipes, search, selectedTags])
     );
 
     const handleToggleFavorite = async (recipeId: string) => {
@@ -186,12 +189,25 @@ export default function RecipesScreen() {
                 Not sure what to search? Try a prompt like : 'Dinner using ground chicken and spinach'
             </CustomText>
 
-            {/* Filters */}
+            {/* Dynamic Tag Pills */}
             <View style={styles.filtersContainer}>
-                {filters.map((filter) => (
-                    <View key={filter} style={styles.filterChip}>
-                        <CustomText style={styles.filterText}>{filter}</CustomText>
-                    </View>
+                {popularTags.map(({ tag }) => (
+                    <TouchableOpacity
+                        key={tag}
+                        style={[
+                            styles.filterChip,
+                            selectedTags.includes(tag) && { backgroundColor: '#E2B36A' }
+                        ]}
+                        onPress={() => {
+                            setSelectedTags(selectedTags =>
+                                selectedTags.includes(tag)
+                                    ? selectedTags.filter(t => t !== tag)
+                                    : [...selectedTags, tag]
+                            );
+                        }}
+                    >
+                        <CustomText style={styles.filterText}>{tag}</CustomText>
+                    </TouchableOpacity>
                 ))}
             </View>
 
