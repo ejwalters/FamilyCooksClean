@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import CustomText from '../components/CustomText';
 import { supabase } from '../lib/supabase';
+import { Heart, HeartIcon } from 'lucide-react-native';
 
 export default function RecipeDetailScreen() {
   const router = useRouter();
@@ -52,6 +53,8 @@ export default function RecipeDetailScreen() {
     { swap: 'Ground Chicken', for: 'Ground Beef' },
   ];
   const [stepButtonAnim, setStepButtonAnim] = useState<Animated.Value[]>([]);
+  const [favorited, setFavorited] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('params', params);
@@ -202,6 +205,53 @@ export default function RecipeDetailScreen() {
     });
   };
 
+  // Fetch user ID on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) setUserId(data.user.id);
+    });
+  }, []);
+
+  // Check if this recipe is favorited after userId and recipe are loaded
+  useEffect(() => {
+    if (!userId || !recipe?.id) return;
+    fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
+      .then(res => res.json())
+      .then(data => {
+        const isFav = data.some((r: any) => r.id === recipe.id);
+        setFavorited(isFav);
+      });
+  }, [userId, recipe?.id]);
+
+  // Handler for heart icon
+  const handleToggleFavorite = async () => {
+    if (!userId || !recipe?.id) return;
+    const currentlyFav = favorited;
+    setFavorited(f => !f);
+    try {
+      if (!currentlyFav) {
+        // Add favorite
+        const res = await fetch('https://familycooksclean.onrender.com/recipes/favorite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, recipe_id: recipe.id }),
+        });
+        if (!res.ok) throw new Error('Failed to favorite');
+      } else {
+        // Remove favorite
+        const res = await fetch('https://familycooksclean.onrender.com/recipes/favorite', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, recipe_id: recipe.id }),
+        });
+        if (!res.ok) throw new Error('Failed to unfavorite');
+      }
+    } catch (err) {
+      setFavorited(currentlyFav);
+      alert('Failed to update favorite. Please try again.');
+    }
+  };
+
   // Show loading spinner while fetching
   if (loading || !recipe) {
     return (
@@ -253,8 +303,12 @@ export default function RecipeDetailScreen() {
         <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <CustomText style={styles.title}>{recipe.title}</CustomText>
-            <TouchableOpacity>
-              <Ionicons name="heart-outline" size={28} color="#6C757D" />
+            <TouchableOpacity onPress={handleToggleFavorite} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              {favorited ? (
+                <HeartIcon color="#E4576A" size={28} />
+              ) : (
+                <Heart color="#B0B0B0" size={28} />
+              )}
             </TouchableOpacity>
           </View>
           <CustomText style={styles.meta}>

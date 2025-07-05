@@ -50,4 +50,60 @@ router.get('/:id', async (req, res) => {
     res.json(data);
 });
 
+// GET /recipes/favorites?user_id=...
+router.get('/favorites', async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
+
+    // Get all favorite recipe_ids for this user
+    const { data: favs, error: favsError } = await supabase
+        .from('favorites')
+        .select('recipe_id')
+        .eq('user_id', user_id);
+
+    if (favsError) return res.status(500).json({ error: favsError.message });
+
+    const recipeIds = favs.map(f => f.recipe_id);
+    if (recipeIds.length === 0) return res.json([]); // No favorites
+
+    // Get the full recipe details for these IDs
+    const { data: recipes, error: recipesError } = await supabase
+        .from('recipes')
+        .select('*')
+        .in('id', recipeIds);
+
+    if (recipesError) return res.status(500).json({ error: recipesError.message });
+
+    res.json(recipes);
+});
+
+// POST /recipes/favorite
+router.post('/favorite', async (req, res) => {
+    const { user_id, recipe_id } = req.body;
+    if (!user_id || !recipe_id) return res.status(400).json({ error: 'Missing user_id or recipe_id' });
+
+    // Insert or ignore if already exists
+    const { error } = await supabase
+        .from('favorites')
+        .insert([{ user_id, recipe_id }], { upsert: true, onConflict: ['user_id', 'recipe_id'] });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+// DELETE /recipes/favorite
+router.delete('/favorite', async (req, res) => {
+    const { user_id, recipe_id } = req.body;
+    if (!user_id || !recipe_id) return res.status(400).json({ error: 'Missing user_id or recipe_id' });
+
+    const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user_id)
+        .eq('recipe_id', recipe_id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 module.exports = router;

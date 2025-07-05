@@ -5,6 +5,8 @@ import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { Heart, HeartIcon } from 'lucide-react-native';
+import { supabase } from '../../lib/supabase';
 
 const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
@@ -43,6 +45,15 @@ export default function RecipesScreen() {
     const [search, setSearch] = useState('');
     const [searching, setSearching] = useState(false);
     const fetchIdRef = useRef(0);
+    const [favorited, setFavorited] = useState<{ [id: string]: boolean }>({});
+    const [userId, setUserId] = useState<string | null>(null);
+    const [favoritesLoaded, setFavoritesLoaded] = useState(false);
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data?.user) setUserId(data.user.id);
+        });
+    }, []);
 
     useEffect(() => {
         fetchIdRef.current += 1;
@@ -87,6 +98,47 @@ export default function RecipesScreen() {
         }, 400);
         return () => clearTimeout(timeout);
     }, [search]);
+
+    useEffect(() => {
+        if (!userId || recipes.length === 0) return;
+        fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
+            .then(res => res.json())
+            .then(data => {
+                const favMap: { [id: string]: boolean } = {};
+                data.forEach((r: any) => {
+                    favMap[r.id] = true;
+                });
+                setFavorited(favMap);
+                setFavoritesLoaded(true);
+            })
+            .catch(() => setFavoritesLoaded(true));
+    }, [userId, recipes]);
+
+    const handleToggleFavorite = async (recipeId: string) => {
+        if (!userId) return;
+        const currentlyFav = favorited[recipeId];
+        setFavorited(fav => ({ ...fav, [recipeId]: !currentlyFav }));
+        try {
+            if (!currentlyFav) {
+                const res = await fetch('https://familycooksclean.onrender.com/recipes/favorite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, recipe_id: recipeId }),
+                });
+                if (!res.ok) throw new Error('Failed to favorite');
+            } else {
+                const res = await fetch('https://familycooksclean.onrender.com/recipes/favorite', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, recipe_id: recipeId }),
+                });
+                if (!res.ok) throw new Error('Failed to unfavorite');
+            }
+        } catch (err) {
+            setFavorited(fav => ({ ...fav, [recipeId]: currentlyFav }));
+            alert('Failed to update favorite. Please try again.');
+        }
+    };
 
     function openAddRecipe() {
         router.push('/add-recipe');
@@ -155,11 +207,16 @@ export default function RecipesScreen() {
                                         {item.ingredients?.length || 0} Ingredients
                                     </CustomText>
                                 </View>
-                                <Image
-                                    source={require('../../assets/images/heart.png')}
-                                    style={styles.heartIcon}
-                                    resizeMode="contain"
-                                />
+                                <TouchableOpacity
+                                    onPress={() => handleToggleFavorite(item.id)}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                    {favorited[item.id] ? (
+                                        <HeartIcon color="#E4576A" size={24} style={styles.heartIcon} />
+                                    ) : (
+                                        <Heart color="#B0B0B0" size={24} style={styles.heartIcon} />
+                                    )}
+                                </TouchableOpacity>
                             </View>
                         </TouchableOpacity>
                     )}

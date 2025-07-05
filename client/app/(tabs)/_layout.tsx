@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
+import { Home, HomeIcon, Book, BookIcon, ChefHat, ChefHatIcon, Heart, HeartIcon, User, UserIcon } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -31,16 +32,7 @@ export default function TabLayout() {
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/home.png')}
-              style={{
-                width: 28,
-                height: 28,
-                tintColor: focused ? '#6DA98C' : '#B0B0B0',
-                alignSelf: 'center',
-              }}
-              resizeMode="contain"
-            />
+            focused ? <HomeIcon color="#6DA98C" size={28} /> : <Home color="#B0B0B0" size={28} />
           ),
         }}
       />
@@ -48,16 +40,7 @@ export default function TabLayout() {
         name="recipes"
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/recipes.png')}
-              style={{
-                width: 28,
-                height: 28,
-                tintColor: focused ? '#6DA98C' : '#B0B0B0',
-                alignSelf: 'center',
-              }}
-              resizeMode="contain"
-            />
+            focused ? <BookIcon color="#6DA98C" size={28} /> : <Book color="#B0B0B0" size={28} />
           ),
         }}
       />
@@ -83,16 +66,7 @@ export default function TabLayout() {
                 alignItems: 'center',
               }}
             >
-              <Image
-                source={require('../../assets/images/chef-hat.png')}
-                style={{
-                  width: 32,
-                  height: 32,
-                  tintColor: '#fff',
-                  alignSelf: 'center',
-                }}
-                resizeMode="contain"
-              />
+              {focused ? <ChefHatIcon color="#fff" size={32} /> : <ChefHat color="#fff" size={32} />}
             </View>
           ),
         }}
@@ -101,16 +75,7 @@ export default function TabLayout() {
         name="favorites"
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/heart.png')}
-              style={{
-                width: 28,
-                height: 28,
-                tintColor: focused ? '#6DA98C' : '#B0B0B0',
-                alignSelf: 'center',
-              }}
-              resizeMode="contain"
-            />
+            focused ? <HeartIcon color="#6DA98C" size={28} /> : <Heart color="#B0B0B0" size={28} />
           ),
         }}
       />
@@ -118,16 +83,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/profile.png')}
-              style={{
-                width: 28,
-                height: 28,
-                tintColor: focused ? '#6DA98C' : '#B0B0B0',
-                alignSelf: 'center',
-              }}
-              resizeMode="contain"
-            />
+            focused ? <UserIcon color="#6DA98C" size={28} /> : <User color="#B0B0B0" size={28} />
           ),
         }}
       />

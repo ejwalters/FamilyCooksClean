@@ -1,8 +1,10 @@
-import React from 'react';
-import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Image, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
+import { Heart, HeartIcon } from 'lucide-react-native';
+import { supabase } from '../../lib/supabase';
 
 const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
@@ -12,8 +14,77 @@ const recipes = Array(5).fill({
     ingredients: 6,
 });
 
+function ForkKnifeLoading() {
+    const pulseAnim = React.useRef(new Animated.Value(1)).current;
+    React.useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+            ])
+        );
+        loop.start();
+        return () => loop.stop();
+    }, [pulseAnim]);
+    return (
+        <View style={{ alignItems: 'center', marginTop: 48, marginBottom: 24 }}>
+            <Animated.Image
+                source={require('../../assets/images/fork-knife.png')}
+                style={{ width: 44, height: 44, tintColor: '#8CBEC7', transform: [{ scale: pulseAnim }] }}
+                resizeMode="contain"
+            />
+        </View>
+    );
+}
+
 export default function FavoritesScreen() {
     const router = useRouter();
+    const [userId, setUserId] = useState<string | null>(null);
+    const [favorites, setFavorites] = useState<any[]>([]);
+    const [search, setSearch] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [filteredFavorites, setFilteredFavorites] = useState<any[]>([]);
+    const [favorited, setFavorited] = useState<{ [idx: number]: boolean }>({});
+
+    // Fetch user ID on mount
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data?.user) setUserId(data.user.id);
+        });
+    }, []);
+
+    // Fetch favorites from backend
+    useEffect(() => {
+        if (!userId) return;
+        fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
+            .then(res => res.json())
+            .then(data => {
+                setFavorites(data);
+                setFilteredFavorites(data);
+            })
+            .catch(() => {
+                setFavorites([]);
+                setFilteredFavorites([]);
+            });
+    }, [userId]);
+
+    // Search effect (filter favorites)
+    useEffect(() => {
+        if (search === '') {
+            setFilteredFavorites(favorites);
+            setSearching(false);
+            return;
+        }
+        setSearching(true);
+        const timeout = setTimeout(() => {
+            const filtered = favorites.filter(r =>
+                r.title.toLowerCase().includes(search.toLowerCase())
+            );
+            setFilteredFavorites(filtered);
+            setSearching(false);
+        }, 300);
+        return () => clearTimeout(timeout);
+    }, [search, favorites]);
 
     return (
         <View style={styles.container}>
@@ -28,6 +99,8 @@ export default function FavoritesScreen() {
                     placeholder="Search Recipes"
                     style={styles.searchBar}
                     placeholderTextColor="#A0A0A0"
+                    value={search}
+                    onChangeText={setSearch}
                 />
                 <Ionicons name="search" size={22} style={styles.searchIcon} />
             </View>
@@ -50,40 +123,48 @@ export default function FavoritesScreen() {
             <CustomText style={styles.sectionTitle}>Recipes</CustomText>
 
             {/* Recipes List */}
-            <FlatList
-                data={recipes}
-                keyExtractor={(_, idx) => idx.toString()}
-                renderItem={({ item }) => (
-                    <View style={styles.recipeCard}>
-                        <View style={styles.recipeIcon}>
-                            <Image
-                                source={require('../../assets/images/fork-knife.png')}
-                                style={styles.iconImage}
-                                resizeMode="contain"
-                            />
-                        </View>
-                        <View style={styles.recipeInfo}>
-                            <CustomText style={styles.recipeTitle}>{item.title}</CustomText>
-                            <View style={styles.recipeMeta}>
-                                <Ionicons name="time-outline" size={14} color="#6C757D" />
-                                <CustomText style={styles.recipeMetaText}>{item.time}</CustomText>
+            {searching ? (
+                <ForkKnifeLoading />
+            ) : (
+                <FlatList
+                    data={filteredFavorites}
+                    keyExtractor={(_, idx) => idx.toString()}
+                    renderItem={({ item, index }) => (
+                        <View style={styles.recipeCard}>
+                            <View style={styles.recipeIcon}>
+                                <Image
+                                    source={require('../../assets/images/fork-knife.png')}
+                                    style={styles.iconImage}
+                                    resizeMode="contain"
+                                />
                             </View>
-                            <CustomText style={styles.recipeIngredients}>
-                                {item.ingredients} Ingredients
-                            </CustomText>
+                            <View style={styles.recipeInfo}>
+                                <CustomText style={styles.recipeTitle}>{item.title}</CustomText>
+                                <View style={styles.recipeMeta}>
+                                    <Ionicons name="time-outline" size={14} color="#6C757D" />
+                                    <CustomText style={styles.recipeMetaText}>{item.time}</CustomText>
+                                </View>
+                                <CustomText style={styles.recipeIngredients}>
+                                    {item.ingredients} Ingredients
+                                </CustomText>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setFavorited(fav => ({ ...fav, [index]: !fav[index] }))}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                {favorited[index] ? (
+                                    <HeartIcon color="#E4576A" size={24} style={styles.heartIcon} />
+                                ) : (
+                                    <Heart color="#B0B0B0" size={24} style={styles.heartIcon} />
+                                )}
+                            </TouchableOpacity>
                         </View>
-                        <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: item })}>
-                            <Image
-                                source={require('../../assets/images/heart.png')}
-                                style={styles.heartIcon}
-                                resizeMode="contain"
-                            />
-                        </TouchableOpacity>
-                    </View>
-                )}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-            />
+                    )}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={<CustomText style={{ textAlign: 'center', marginTop: 40 }}>No recipes found.</CustomText>}
+                />
+            )}
         </View>
     );
 }
