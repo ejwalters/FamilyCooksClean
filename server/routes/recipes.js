@@ -54,38 +54,6 @@ router.get('/list', async (req, res) => {
     res.json(data);
 });
 
-// GET /recipes/:id
-router.get('/:id', async (req, res) => {
-    const { id } = req.params;
-    const { user_id } = req.query;
-    if (!id) return res.status(400).json({ error: 'Missing recipe id' });
-    const { data, error } = await supabase
-        .from('recipes')
-        .select('*')
-        .eq('id', id)
-        .single();
-    if (error) return res.status(500).json({ error: error.message });
-    if (!data) return res.status(404).json({ error: 'Recipe not found' });
-    
-    // If user_id is provided, check if this recipe is favorited
-    if (user_id) {
-        const { data: fav, error: favError } = await supabase
-            .from('favorites')
-            .select('recipe_id')
-            .eq('user_id', user_id)
-            .eq('recipe_id', id)
-            .single();
-        
-        if (!favError && fav) {
-            data.is_favorited = true;
-        } else {
-            data.is_favorited = false;
-        }
-    }
-    
-    res.json(data);
-});
-
 // GET /recipes/favorites?user_id=...
 router.get('/favorites', async (req, res) => {
     const { user_id } = req.query;
@@ -119,6 +87,38 @@ router.get('/favorites', async (req, res) => {
 
     console.log('Returning recipes:', recipes);
     res.json(recipes);
+});
+
+// GET /recipes/:id
+router.get('/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Missing recipe id' });
+    const { data, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data) return res.status(404).json({ error: 'Recipe not found' });
+    
+    // If user_id is provided, check if this recipe is favorited
+    if (user_id) {
+        const { data: fav, error: favError } = await supabase
+            .from('favorites')
+            .select('recipe_id')
+            .eq('user_id', user_id)
+            .eq('recipe_id', id)
+            .single();
+        
+        if (!favError && fav) {
+            data.is_favorited = true;
+        } else {
+            data.is_favorited = false;
+        }
+    }
+    
+    res.json(data);
 });
 
 // POST /recipes/favorite
