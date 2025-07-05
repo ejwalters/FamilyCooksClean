@@ -6,12 +6,6 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 
-const recentlyCooked = [
-  { title: 'Honey Garlic Chicken' },
-  { title: 'Homemade Chili' },
-  { title: 'Beef & Broccoli' },
-];
-
 export default function HomeScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -22,6 +16,7 @@ export default function HomeScreen() {
   const dropdownAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [favorites, setFavorites] = useState<any[]>([]);
+  const [recentlyCooked, setRecentlyCooked] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
 
   // Fetch user ID on mount
@@ -45,15 +40,33 @@ export default function HomeScreen() {
       });
   };
 
-  // Fetch favorites on mount and when userId changes
+  // Fetch recently cooked function
+  const fetchRecentlyCooked = () => {
+    if (!userId) return;
+    fetch(`https://familycooksclean.onrender.com/recipes/recently-cooked?user_id=${userId}&limit=5`)
+      .then(res => res.json())
+      .then(data => {
+        console.log('Recently cooked API response:', data);
+        const recentlyCookedArray = Array.isArray(data) ? data : [];
+        setRecentlyCooked(recentlyCookedArray);
+      })
+      .catch((err) => {
+        console.error('Error fetching recently cooked:', err);
+        setRecentlyCooked([]);
+      });
+  };
+
+  // Fetch data on mount and when userId changes
   useEffect(() => {
     fetchFavorites();
+    fetchRecentlyCooked();
   }, [userId]);
 
-  // Force reload favorites when screen comes into focus
+  // Force reload data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchFavorites();
+      fetchRecentlyCooked();
     }, [userId])
   );
 
@@ -215,11 +228,21 @@ export default function HomeScreen() {
             contentContainerStyle={styles.cardRow}
             style={styles.cardRowContainer}
           >
-            {recentlyCooked.map((item, idx) => (
-              <TouchableOpacity key={idx} onPress={() => router.push({ pathname: '/recipe-detail', params: item })} style={[styles.card, styles.cardBlue]}>
-                <CustomText style={styles.cardText}>{item.title}</CustomText>
-              </TouchableOpacity>
-            ))}
+            {recentlyCooked.length > 0 ? (
+              recentlyCooked.map((item, idx) => (
+                <TouchableOpacity 
+                  key={item.id || idx} 
+                  onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })} 
+                  style={[styles.card, styles.cardBlue]}
+                >
+                  <CustomText style={styles.cardText}>{item.title}</CustomText>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={[styles.card, styles.cardBlue, { opacity: 0.6 }]}>
+                <CustomText style={styles.cardText}>No recipes cooked yet</CustomText>
+              </View>
+            )}
           </ScrollView>
           <CustomText style={styles.sectionTitle}>Favorites</CustomText>
           <ScrollView
