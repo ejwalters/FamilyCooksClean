@@ -3,13 +3,10 @@ import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity, FlatL
 import CustomText from '../../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 const recentlyCooked = [
-  { title: 'Honey Garlic Chicken' },
-  { title: 'Homemade Chili' },
-  { title: 'Beef & Broccoli' },
-];
-const favorites = [
   { title: 'Honey Garlic Chicken' },
   { title: 'Homemade Chili' },
   { title: 'Beef & Broccoli' },
@@ -24,6 +21,41 @@ export default function HomeScreen() {
   const [showModal, setShowModal] = useState(false);
   const dropdownAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Fetch user ID on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) setUserId(data.user.id);
+    });
+  }, []);
+
+  // Fetch favorites function
+  const fetchFavorites = () => {
+    if (!userId) return;
+    fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
+      .then(res => res.json())
+      .then(data => {
+        const favoritesArray = Array.isArray(data) ? data : [];
+        setFavorites(favoritesArray);
+      })
+      .catch(() => {
+        setFavorites([]);
+      });
+  };
+
+  // Fetch favorites on mount and when userId changes
+  useEffect(() => {
+    fetchFavorites();
+  }, [userId]);
+
+  // Force reload favorites when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchFavorites();
+    }, [userId])
+  );
 
   useEffect(() => {
     if (!search) {
@@ -196,11 +228,21 @@ export default function HomeScreen() {
             contentContainerStyle={styles.cardRow}
             style={styles.cardRowContainer}
           >
-            {favorites.map((item, idx) => (
-              <TouchableOpacity key={idx} onPress={() => router.push({ pathname: '/recipe-detail', params: item })} style={[styles.card, styles.cardGold]}>
-                <CustomText style={styles.cardText}>{item.title}</CustomText>
-              </TouchableOpacity>
-            ))}
+            {favorites.length > 0 ? (
+              favorites.map((item, idx) => (
+                <TouchableOpacity 
+                  key={item.id || idx} 
+                  onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })} 
+                  style={[styles.card, styles.cardGold]}
+                >
+                  <CustomText style={styles.cardText}>{item.title}</CustomText>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={[styles.card, styles.cardGold, { opacity: 0.6 }]}>
+                <CustomText style={styles.cardText}>No favorites yet</CustomText>
+              </View>
+            )}
           </ScrollView>
         </ScrollView>
       </View>
