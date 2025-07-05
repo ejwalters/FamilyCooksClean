@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Image, Animated } from 'react-native';
+import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Image, Animated, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
 import { Heart, HeartIcon } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
-
-const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
 function ForkKnifeLoading() {
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
@@ -39,6 +37,8 @@ export default function FavoritesScreen() {
     const [search, setSearch] = useState('');
     const [searching, setSearching] = useState(false);
     const [filteredFavorites, setFilteredFavorites] = useState<any[]>([]);
+    const [popularTags, setPopularTags] = useState<{ tag: string, count: number }[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     // Fetch user ID on mount
     useEffect(() => {
@@ -47,49 +47,47 @@ export default function FavoritesScreen() {
         });
     }, []);
 
-    // Fetch favorites function
-    const fetchFavorites = () => {
+    // Fetch popular tags
+    useEffect(() => {
+        fetch('https://familycooksclean.onrender.com/recipes/tags/popular')
+            .then(res => res.json())
+            .then(data => setPopularTags(data))
+            .catch(() => setPopularTags([]));
+    }, []);
+
+    // Fetch favorites function (now supports tags)
+    const fetchFavorites = React.useCallback(() => {
         if (!userId) {
-            console.log('Favorites screen: No userId, skipping fetch');
+            setFavorites([]);
+            setFilteredFavorites([]);
             return;
         }
-        console.log('Favorites screen: Fetching favorites for user:', userId);
-        const url = `https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`;
-        console.log('Favorites screen: URL:', url);
+        let url = `https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`;
+        if (selectedTags.length > 0) {
+            url += `&tags=${encodeURIComponent(selectedTags.join(','))}`;
+        }
         fetch(url)
-            .then(res => {
-                console.log('Favorites screen: Response status:', res.status);
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
-                console.log('Favorites screen: API response:', data);
-                console.log('Favorites screen: Response type:', typeof data);
-                console.log('Favorites screen: Is array?', Array.isArray(data));
-                // Ensure data is always an array
-                const favoritesArray = Array.isArray(data) ? data : [];
-                console.log('Favorites screen: Processed array:', favoritesArray);
-                console.log('Favorites screen: Array length:', favoritesArray.length);
-                setFavorites(favoritesArray);
-                setFilteredFavorites(favoritesArray);
+                setFavorites(data);
+                setFilteredFavorites(data);
             })
-            .catch((err) => {
-                console.error('Favorites screen: Error fetching favorites:', err);
+            .catch(() => {
                 setFavorites([]);
                 setFilteredFavorites([]);
             });
-    };
+    }, [userId, selectedTags]);
 
     // Fetch favorites from backend
     useEffect(() => {
         fetchFavorites();
-    }, [userId]);
+    }, [userId, fetchFavorites]);
 
     // Force reload favorites when screen comes into focus
     useFocusEffect(
         React.useCallback(() => {
-            console.log('Favorites screen: Focus effect triggered');
             fetchFavorites();
-        }, [userId])
+        }, [fetchFavorites])
     );
 
     // Search effect (filter favorites)
@@ -101,7 +99,6 @@ export default function FavoritesScreen() {
         }
         setSearching(true);
         const timeout = setTimeout(() => {
-            // Ensure favorites is an array before filtering
             const favoritesArray = Array.isArray(favorites) ? favorites : [];
             const filtered = favoritesArray.filter(r =>
                 r.title.toLowerCase().includes(search.toLowerCase())
@@ -116,15 +113,12 @@ export default function FavoritesScreen() {
     const handleToggleFavorite = async (recipeId: string) => {
         if (!userId) return;
         try {
-            // Remove favorite
             const res = await fetch('https://familycooksclean.onrender.com/recipes/favorite', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: userId, recipe_id: recipeId }),
             });
             if (!res.ok) throw new Error('Failed to unfavorite');
-            
-            // Remove from local state
             setFavorites(prev => prev.filter(r => r.id !== recipeId));
             setFilteredFavorites(prev => prev.filter(r => r.id !== recipeId));
         } catch (err) {
@@ -156,13 +150,34 @@ export default function FavoritesScreen() {
                 Not sure what to search? Try a prompt like : 'Dinner using ground chicken and spinach'
             </CustomText>
 
-            {/* Filters */}
-            <View style={styles.filtersContainer}>
-                {filters.map((filter) => (
-                    <View key={filter} style={styles.filterChip}>
-                        <CustomText style={styles.filterText}>{filter}</CustomText>
-                    </View>
-                ))}
+            {/* Dynamic Tag Pills */}
+            <View style={{ marginBottom: 8 }}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ alignItems: 'center', height: 43 }}
+                >
+                    {popularTags.map(({ tag }, idx) => (
+                        <TouchableOpacity
+                            key={tag}
+                            style={[
+                                styles.filterChip,
+                                idx === 0 && { marginLeft: 0 },
+                                idx === popularTags.length - 1 && { marginRight: 0 },
+                                selectedTags.includes(tag) && { backgroundColor: '#E2B36A' }
+                            ]}
+                            onPress={() => {
+                                setSelectedTags(selectedTags =>
+                                    selectedTags.includes(tag)
+                                        ? selectedTags.filter(t => t !== tag)
+                                        : [...selectedTags, tag]
+                                );
+                            }}
+                        >
+                            <CustomText style={styles.filterText}>{tag}</CustomText>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
             </View>
 
             {/* Recipes Title */}
@@ -229,15 +244,6 @@ const styles = StyleSheet.create({
     searchBar: { flex: 1, fontSize: 16, color: '#333' },
     searchIcon: { color: '#A0A0A0' },
     prompt: { color: '#6C757D', fontSize: 13, marginVertical: 8, textAlign: 'center' },
-    filtersContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 16 },
-    filterChip: {
-        backgroundColor: '#7BA892',
-        borderRadius: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        marginHorizontal: 4,
-    },
-    filterText: { color: '#fff', fontSize: 13 },
     sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
     listContent: { paddingBottom: 80 },
     recipeCard: {
@@ -270,4 +276,12 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
     },
+    filterChip: {
+        backgroundColor: '#7BA892',
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        marginHorizontal: 4,
+    },
+    filterText: { color: '#fff', fontSize: 13 },
 }); 

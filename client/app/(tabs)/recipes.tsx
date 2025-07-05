@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image, ActivityIndicator, Animated, Easing } from 'react-native';
+import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image, ActivityIndicator, Animated, Easing, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // or your icon library
 import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
@@ -190,25 +190,33 @@ export default function RecipesScreen() {
             </CustomText>
 
             {/* Dynamic Tag Pills */}
-            <View style={styles.filtersContainer}>
-                {popularTags.map(({ tag }) => (
-                    <TouchableOpacity
-                        key={tag}
-                        style={[
-                            styles.filterChip,
-                            selectedTags.includes(tag) && { backgroundColor: '#E2B36A' }
-                        ]}
-                        onPress={() => {
-                            setSelectedTags(selectedTags =>
-                                selectedTags.includes(tag)
-                                    ? selectedTags.filter(t => t !== tag)
-                                    : [...selectedTags, tag]
-                            );
-                        }}
-                    >
-                        <CustomText style={styles.filterText}>{tag}</CustomText>
-                    </TouchableOpacity>
-                ))}
+            <View style={{ marginBottom: 8 }}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ alignItems: 'center', height: 43 }}
+                >
+                    {popularTags.map(({ tag }, idx) => (
+                        <TouchableOpacity
+                            key={tag}
+                            style={[
+                                styles.filterChip,
+                                idx === 0 && { marginLeft: 0 },
+                                idx === popularTags.length - 1 && { marginRight: 0 },
+                                selectedTags.includes(tag) && { backgroundColor: '#E2B36A' }
+                            ]}
+                            onPress={() => {
+                                setSelectedTags(selectedTags =>
+                                    selectedTags.includes(tag)
+                                        ? selectedTags.filter(t => t !== tag)
+                                        : [...selectedTags, tag]
+                                );
+                            }}
+                        >
+                            <CustomText style={styles.filterText}>{tag}</CustomText>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
             </View>
 
             {/* Recipes Title */}
@@ -290,15 +298,25 @@ const styles = StyleSheet.create({
     searchBar: { flex: 1, fontSize: 16, color: '#333' },
     searchIcon: { color: '#A0A0A0' },
     prompt: { color: '#6C757D', fontSize: 13, marginVertical: 8, textAlign: 'center' },
-    filtersContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 16 },
+    filtersContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 43,
+    },
     filterChip: {
         backgroundColor: '#7BA892',
-        borderRadius: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 4,
+        borderRadius: 22,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
         marginHorizontal: 4,
+        height: 35,
+        minHeight: 35,
+        maxHeight: 35,
+        justifyContent: 'center',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
     },
-    filterText: { color: '#fff', fontSize: 13 },
+    filterText: { color: '#fff', fontSize: 15, fontWeight: '600' },
     sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
     listContent: { paddingBottom: 80 },
     recipeCard: {
