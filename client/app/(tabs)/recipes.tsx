@@ -55,11 +55,11 @@ export default function RecipesScreen() {
         });
     }, []);
 
-    useEffect(() => {
+    const fetchRecipes = useCallback((searchTerm = '') => {
         fetchIdRef.current += 1;
         const fetchId = fetchIdRef.current;
 
-        if (search === '') {
+        if (searchTerm === '') {
             setLoading(true);
             const url = userId 
                 ? `https://familycooksclean.onrender.com/recipes/list?limit=20&user_id=${userId}`
@@ -92,8 +92,8 @@ export default function RecipesScreen() {
         setSearching(true);
         const timeout = setTimeout(() => {
             const url = userId 
-                ? `https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(search)}&user_id=${userId}`
-                : `https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(search)}`;
+                ? `https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(searchTerm)}&user_id=${userId}`
+                : `https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(searchTerm)}`;
             fetch(url)
                 .then(res => res.json())
                 .then(data => {
@@ -119,7 +119,18 @@ export default function RecipesScreen() {
                 });
         }, 400);
         return () => clearTimeout(timeout);
-    }, [search, userId]);
+    }, [userId]);
+
+    useEffect(() => {
+        fetchRecipes(search);
+    }, [search, fetchRecipes]);
+
+    useFocusEffect(
+        useCallback(() => {
+            console.log('Recipes screen: Focus effect triggered');
+            fetchRecipes(search);
+        }, [fetchRecipes, search])
+    );
 
     const handleToggleFavorite = async (recipeId: string) => {
         if (!userId) return;

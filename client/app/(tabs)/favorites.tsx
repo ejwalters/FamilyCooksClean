@@ -9,12 +9,6 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const filters = ['15min Meals', 'Kid Friendly', 'Vegan', 'Healthy'];
 
-const recipes = Array(5).fill({
-    title: 'Honey Garlic Chicken',
-    time: '15 min',
-    ingredients: 6,
-});
-
 function ForkKnifeLoading() {
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
     React.useEffect(() => {
@@ -45,7 +39,6 @@ export default function FavoritesScreen() {
     const [search, setSearch] = useState('');
     const [searching, setSearching] = useState(false);
     const [filteredFavorites, setFilteredFavorites] = useState<any[]>([]);
-    const [favorited, setFavorited] = useState<{ [idx: number]: boolean }>({});
 
     // Fetch user ID on mount
     useEffect(() => {
@@ -119,6 +112,26 @@ export default function FavoritesScreen() {
         return () => clearTimeout(timeout);
     }, [search, favorites]);
 
+    // Handler for heart icon (unfavorite from favorites list)
+    const handleToggleFavorite = async (recipeId: string) => {
+        if (!userId) return;
+        try {
+            // Remove favorite
+            const res = await fetch('https://familycooksclean.onrender.com/recipes/favorite', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, recipe_id: recipeId }),
+            });
+            if (!res.ok) throw new Error('Failed to unfavorite');
+            
+            // Remove from local state
+            setFavorites(prev => prev.filter(r => r.id !== recipeId));
+            setFilteredFavorites(prev => prev.filter(r => r.id !== recipeId));
+        } catch (err) {
+            alert('Failed to remove favorite. Please try again.');
+        }
+    };
+
     return (
         <View style={styles.container}>
             {/* Header */}
@@ -161,37 +174,35 @@ export default function FavoritesScreen() {
             ) : (
                 <FlatList
                     data={filteredFavorites}
-                    keyExtractor={(_, idx) => idx.toString()}
-                    renderItem={({ item, index }) => (
-                        <View style={styles.recipeCard}>
-                            <View style={styles.recipeIcon}>
-                                <Image
-                                    source={require('../../assets/images/fork-knife.png')}
-                                    style={styles.iconImage}
-                                    resizeMode="contain"
-                                />
-                            </View>
-                            <View style={styles.recipeInfo}>
-                                <CustomText style={styles.recipeTitle}>{item.title}</CustomText>
-                                <View style={styles.recipeMeta}>
-                                    <Ionicons name="time-outline" size={14} color="#6C757D" />
-                                    <CustomText style={styles.recipeMetaText}>{item.time}</CustomText>
+                    keyExtractor={item => item.id}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })}>
+                            <View style={styles.recipeCard}>
+                                <View style={styles.recipeIcon}>
+                                    <Image
+                                        source={require('../../assets/images/fork-knife.png')}
+                                        style={styles.iconImage}
+                                        resizeMode="contain"
+                                    />
                                 </View>
-                                <CustomText style={styles.recipeIngredients}>
-                                    {item.ingredients} Ingredients
-                                </CustomText>
-                            </View>
-                            <TouchableOpacity
-                                onPress={() => setFavorited(fav => ({ ...fav, [index]: !fav[index] }))}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                                {favorited[index] ? (
+                                <View style={styles.recipeInfo}>
+                                    <CustomText style={styles.recipeTitle}>{item.title}</CustomText>
+                                    <View style={styles.recipeMeta}>
+                                        <Ionicons name="time-outline" size={14} color="#6C757D" />
+                                        <CustomText style={styles.recipeMetaText}>{item.time}</CustomText>
+                                    </View>
+                                    <CustomText style={styles.recipeIngredients}>
+                                        {item.ingredients?.length || 0} Ingredients
+                                    </CustomText>
+                                </View>
+                                <TouchableOpacity
+                                    onPress={() => handleToggleFavorite(item.id)}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
                                     <HeartIcon color="#E4576A" size={24} style={styles.heartIcon} />
-                                ) : (
-                                    <Heart color="#B0B0B0" size={24} style={styles.heartIcon} />
-                                )}
-                            </TouchableOpacity>
-                        </View>
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableOpacity>
                     )}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
