@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, TextInput, StyleSheet, FlatList, TouchableOpacity, Text, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // or your icon library
 import CustomText from '../../components/CustomText';
@@ -42,17 +42,29 @@ export default function RecipesScreen() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [searching, setSearching] = useState(false);
+    const fetchIdRef = useRef(0);
 
     useEffect(() => {
+        fetchIdRef.current += 1;
+        const fetchId = fetchIdRef.current;
+
         if (search === '') {
             setLoading(true);
             fetch('https://familycooksclean.onrender.com/recipes/list?limit=20')
                 .then(res => res.json())
                 .then(data => {
-                    setRecipes(data);
-                    setLoading(false);
+                    if (fetchId === fetchIdRef.current) {
+                        setRecipes(data);
+                        setLoading(false);
+                        setSearching(false);
+                    }
                 })
-                .catch(() => setLoading(false));
+                .catch(() => {
+                    if (fetchId === fetchIdRef.current) {
+                        setLoading(false);
+                        setSearching(false);
+                    }
+                });
             return;
         }
         setSearching(true);
@@ -60,10 +72,18 @@ export default function RecipesScreen() {
             fetch(`https://familycooksclean.onrender.com/recipes/list?limit=20&q=${encodeURIComponent(search)}`)
                 .then(res => res.json())
                 .then(data => {
-                    setRecipes(data);
-                    setSearching(false);
+                    if (fetchId === fetchIdRef.current) {
+                        setRecipes(data);
+                        setSearching(false);
+                        setLoading(false);
+                    }
                 })
-                .catch(() => setSearching(false));
+                .catch(() => {
+                    if (fetchId === fetchIdRef.current) {
+                        setSearching(false);
+                        setLoading(false);
+                    }
+                });
         }, 400);
         return () => clearTimeout(timeout);
     }, [search]);
