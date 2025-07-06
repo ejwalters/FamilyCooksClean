@@ -230,4 +230,18 @@ router.post('/start-cooking', async (req, res) => {
     res.json({ success: true });
 });
 
+// POST /recipes/save-message-recipe
+router.post('/save-message-recipe', async (req, res) => {
+    const { message_id, saved_recipe_id } = req.body;
+    if (!message_id || !saved_recipe_id) {
+        return res.status(400).json({ error: 'Missing message_id or saved_recipe_id' });
+    }
+    const { error } = await supabase
+        .from('messages')
+        .update({ saved_recipe_id })
+        .eq('id', message_id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 module.exports = router;

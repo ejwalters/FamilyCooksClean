@@ -349,6 +349,7 @@ export default function ChatScreen() {
                                         tags: JSON.stringify(msg.recipe.tags),
                                         ingredients: JSON.stringify(msg.recipe.ingredients),
                                         steps: JSON.stringify(msg.recipe.steps),
+                                        message_id: msg.id,
                                     };
                                     router.push({ pathname: '/recipe-detail', params });
                                 }}

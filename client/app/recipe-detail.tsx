@@ -72,10 +72,11 @@ export default function RecipeDetailScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('params', params);
-    if (!isAIRecipe && params.id) {
+    if (params.id) {
       setLoading(true);
       const url = userId 
         ? `https://familycooksclean.onrender.com/recipes/${params.id}?user_id=${userId}`
@@ -84,28 +85,19 @@ export default function RecipeDetailScreen() {
         .then(res => res.json())
         .then(data => {
           setRecipe(data);
-          // Set favorited state from API response
           setFavorited(data.is_favorited || false);
           setLoading(false);
         })
         .catch(() => setLoading(false));
-    } else if (isAIRecipe) {
-      // For AI recipes, use params directly, but ensure arrays
-      console.log('AI params', {
-        tags: params.tags,
-        ingredients: params.ingredients,
-        steps: params.steps,
-      });
-      console.log('AI params.steps', params.steps, Array.isArray(params.steps), typeof params.steps);
+    } else {
+      // For AI recipes passed directly in params (e.g. from chat), use params
       function toArray(val: any): string[] {
         if (Array.isArray(val)) return val;
         if (typeof val === 'string') {
-          // Try to parse as JSON array first (for AI recipes passed from chat)
           try {
             const parsed = JSON.parse(val);
             if (Array.isArray(parsed)) return parsed;
           } catch { }
-          // Try to split on period+comma or period+space+capital letter
           if (val.match(/\\.,|\\. (?=[A-Z])/)) {
             return val.split(/\\.,|\\. (?=[A-Z])/).map(s => s.trim()).filter(Boolean);
           }
@@ -320,6 +312,22 @@ export default function RecipeDetailScreen() {
       });
       if (!response.ok) throw new Error('Failed to save recipe');
       setSaveStatus('success');
+      const savedRecipe = await response.json();
+      if (params.message_id) {
+        try {
+          await fetch('https://familycooksclean.onrender.com/recipes/save-message-recipe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message_id: params.message_id,
+              saved_recipe_id: savedRecipe.id,
+            }),
+          });
+        } catch (e) {
+          console.error('Failed to update message with saved_recipe_id', e);
+        }
+      }
+      router.replace({ pathname: '/recipe-detail', params: { id: savedRecipe.id, isAI: '1' } });
     } catch (err: any) {
       setSaveStatus('error');
       alert(err.message || 'Failed to save recipe');
@@ -406,6 +414,57 @@ export default function RecipeDetailScreen() {
               </View>
             );
           })}
+          {!recipe?.id && userId && (
+            <TouchableOpacity
+              style={{ backgroundColor: saveStatus === 'saving' ? '#B0B0B0' : '#E2B36A', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginTop: 16, marginBottom: 8 }}
+              disabled={saveStatus === 'saving'}
+              onPress={async () => {
+                setSaveStatus('saving');
+                setSaveError(null);
+                try {
+                  // Validation: check required fields
+                  if (!recipe.title || !Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0 || !Array.isArray(recipe.steps) || recipe.steps.length === 0) {
+                    setSaveStatus('idle');
+                    setSaveError('Recipe is missing required fields.');
+                    return;
+                  }
+                  const payload = {
+                    user_id: userId,
+                    title: recipe.title,
+                    time: recipe.time || '',
+                    tags: recipe.tags || [],
+                    ingredients: recipe.ingredients,
+                    steps: recipe.steps,
+                  };
+                  console.log('Saving AI recipe from chat payload:', payload);
+                  const response = await fetch('https://familycooksclean.onrender.com/recipes/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  if (!response.ok) {
+                    const errText = await response.text();
+                    setSaveStatus('error');
+                    setSaveError('Failed to save recipe: ' + errText);
+                    return;
+                  }
+                  const savedRecipe = await response.json();
+                  setSaveStatus('success');
+                  router.replace({ pathname: '/recipe-detail', params: { id: savedRecipe.id, isAI: '1' } });
+                } catch (err: any) {
+                  setSaveStatus('error');
+                  setSaveError(err.message || 'Failed to save recipe');
+                }
+              }}
+            >
+              <CustomText style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                {saveStatus === 'saving' ? 'Saving...' : 'Save AI Recipe'}
+              </CustomText>
+            </TouchableOpacity>
+          )}
+          {!recipe?.id && saveError && (
+            <CustomText style={{ color: '#E4576A', marginBottom: 8, textAlign: 'center' }}>{saveError}</CustomText>
+          )}
           <CustomText style={styles.sectionTitle}>AI Chef</CustomText>
           <CustomText style={styles.aiChefText}>
             Missing or want to substitute an ingredient? Make it protein-packed or vegan? Ask the AI Chef how!
@@ -538,93 +597,78 @@ export default function RecipeDetailScreen() {
             {aiResult && (
               <View style={{ marginTop: 12, marginBottom: 16 }}>
                 <CustomText style={{ fontWeight: '700', fontSize: 16, marginBottom: 4 }}>AI Suggestions</CustomText>
-                <CustomText style={{ color: '#6C757D', marginBottom: 8 }}>{aiResult.summary}</CustomText>
-                {aiResult.swaps && aiResult.swaps.length > 0 && (
+                <CustomText style={{ color: '#6C757D', marginBottom: 12 }}>{aiResult.summary}</CustomText>
+                {aiResult.swaps && aiResult.swaps.length > 0 ? (
                   <View style={{ marginBottom: 8 }}>
                     <CustomText style={{ fontWeight: '600', marginBottom: 4 }}>Ingredient Swaps:</CustomText>
                     {aiResult.swaps.map((swap: any, idx: number) => (
-                      <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                        <CustomText style={{ flex: 1 }}>{swap.original}</CustomText>
-                        <Ionicons name="arrow-forward" size={18} color="#7BA892" style={{ marginHorizontal: 6 }} />
-                        <CustomText style={{ flex: 1, color: '#7BA892' }}>{swap.new}</CustomText>
+                      <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                        <CustomText style={{ flex: 1, color: '#888', textDecorationLine: 'line-through' }}>{swap.original}</CustomText>
+                        <Ionicons name="arrow-forward" size={18} color="#E2B36A" style={{ marginHorizontal: 8 }} />
+                        <CustomText style={{ flex: 1, color: '#7BA892', fontWeight: '700' }}>{swap.new}</CustomText>
                         {swap.amount_change && <CustomText style={{ marginLeft: 6, color: '#E2B36A' }}>{swap.amount_change}</CustomText>}
                       </View>
                     ))}
                   </View>
-                )}
-                <CustomText style={{ fontWeight: '600', marginBottom: 4 }}>Ingredients:</CustomText>
-                {aiResult.newRecipe && (
-                  <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                    <View style={{ flex: 1 }}>
-                      <CustomText style={{ fontWeight: '500', marginBottom: 2 }}>Original</CustomText>
-                      {ingredients.map((ing, idx) => (
-                        <CustomText key={idx} style={{ color: '#888' }}>{ing}</CustomText>
-                      ))}
-                    </View>
-                    <View style={{ width: 16 }} />
-                    <View style={{ flex: 1 }}>
-                      <CustomText style={{ fontWeight: '500', marginBottom: 2 }}>AI Version</CustomText>
-                      {aiResult.newRecipe.ingredients.map((ing: string, idx: number) => (
-                        <CustomText key={idx} style={{ color: '#222' }}>{ing}</CustomText>
-                      ))}
-                    </View>
-                  </View>
-                )}
-                <CustomText style={{ fontWeight: '600', marginBottom: 4 }}>Steps:</CustomText>
-                {aiResult.newRecipe && (
-                  <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                    <View style={{ flex: 1 }}>
-                      <CustomText style={{ fontWeight: '500', marginBottom: 2 }}>Original</CustomText>
-                      {steps.map((step, idx) => (
-                        <CustomText key={idx} style={{ color: '#888' }}>{step}</CustomText>
-                      ))}
-                    </View>
-                    <View style={{ width: 16 }} />
-                    <View style={{ flex: 1 }}>
-                      <CustomText style={{ fontWeight: '500', marginBottom: 2 }}>AI Version</CustomText>
-                      {aiResult.newRecipe.steps.map((step: string, idx: number) => (
-                        <CustomText key={idx} style={{ color: '#222' }}>{step}</CustomText>
-                      ))}
-                    </View>
-                  </View>
+                ) : (
+                  <CustomText style={{ color: '#6C757D', marginBottom: 8 }}>No ingredient swaps were needed.</CustomText>
                 )}
                 <TouchableOpacity
                   style={{ backgroundColor: '#E2B36A', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginTop: 8 }}
                   onPress={async () => {
-                    // Save the new recipe and navigate to its detail page
                     setSaveStatus('saving');
+                    setSaveError(null);
                     try {
                       const { data } = await supabase.auth.getUser();
                       const user_id = data?.user?.id;
                       if (!user_id) throw new Error('You must be logged in to save recipes.');
+                      const newRecipe = aiResult.newRecipe || {};
+                      // Validation: check required fields
+                      if (!newRecipe.title || !Array.isArray(newRecipe.ingredients) || newRecipe.ingredients.length === 0 || !Array.isArray(newRecipe.steps) || newRecipe.steps.length === 0) {
+                        setSaveStatus('idle');
+                        setSaveError('AI did not return a complete recipe. Please try again or edit your prompt.');
+                        console.error('Invalid AI recipe:', newRecipe);
+                        return;
+                      }
                       const payload = {
                         user_id,
-                        title: aiResult.newRecipe.title,
-                        time: aiResult.newRecipe.time,
-                        tags: aiResult.newRecipe.tags,
-                        ingredients: aiResult.newRecipe.ingredients,
-                        steps: aiResult.newRecipe.steps,
+                        title: newRecipe.title,
+                        time: newRecipe.time || recipe.time || '',
+                        tags: newRecipe.tags || recipe.tags || [],
+                        ingredients: newRecipe.ingredients,
+                        steps: newRecipe.steps,
                         parent_recipe_id: recipe.id || null,
                       };
+                      console.log('Saving AI recipe payload:', payload);
                       const response = await fetch('https://familycooksclean.onrender.com/recipes/add', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload),
                       });
-                      if (!response.ok) throw new Error('Failed to save recipe');
-                      const newRecipe = await response.json();
+                      if (!response.ok) {
+                        const errText = await response.text();
+                        setSaveStatus('error');
+                        setSaveError('Failed to save recipe: ' + errText);
+                        console.error('Save error:', errText);
+                        return;
+                      }
+                      const savedRecipe = await response.json();
                       setSaveStatus('success');
                       setShowChefSheet(false);
-                      router.push({ pathname: '/recipe-detail', params: { id: newRecipe.id, isAI: '1' } });
+                      router.replace({ pathname: '/recipe-detail', params: { id: savedRecipe.id, isAI: '1' } });
                     } catch (err: any) {
                       setSaveStatus('error');
-                      alert(err.message || 'Failed to save recipe');
+                      setSaveError(err.message || 'Failed to save recipe');
+                      console.error('Save error:', err);
                     }
                   }}
                 >
                   <CustomText style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Accept Changes & Save as New Recipe</CustomText>
                 </TouchableOpacity>
               </View>
+            )}
+            {saveError && (
+              <CustomText style={{ color: '#E4576A', marginTop: 8, textAlign: 'center' }}>{saveError}</CustomText>
             )}
             {/* Cooking Timer or Button */}
             {!cooking ? (
