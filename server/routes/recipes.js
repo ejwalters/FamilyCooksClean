@@ -233,14 +233,20 @@ router.post('/start-cooking', async (req, res) => {
 // POST /recipes/save-message-recipe
 router.post('/save-message-recipe', async (req, res) => {
     const { message_id, saved_recipe_id } = req.body;
+    console.log('Received save-message-recipe:', { message_id, saved_recipe_id });
     if (!message_id || !saved_recipe_id) {
+        console.log('Missing message_id or saved_recipe_id');
         return res.status(400).json({ error: 'Missing message_id or saved_recipe_id' });
     }
     const { error } = await supabase
         .from('messages')
         .update({ saved_recipe_id })
         .eq('id', message_id);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+        console.log('Supabase update error:', error);
+        return res.status(500).json({ error: error.message });
+    }
+    console.log('Successfully updated message', message_id, 'with saved_recipe_id', saved_recipe_id);
     res.json({ success: true });
 });
 
