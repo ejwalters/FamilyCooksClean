@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import CustomText from '../components/CustomText';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { profileService } from '../lib/profileService';
 
 export default function EditProfileScreen() {
@@ -39,12 +40,18 @@ export default function EditProfileScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.8,
+            quality: 1, // get the best quality, we'll compress after
         });
         if (!result.canceled && result.assets[0]) {
             setLoading(true);
             try {
-                const uploadedUrl = await profileService.uploadAvatar(result.assets[0].uri);
+                // Resize and compress the image before upload
+                const manipResult = await ImageManipulator.manipulateAsync(
+                    result.assets[0].uri,
+                    [{ resize: { width: 512, height: 512 } }],
+                    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+                );
+                const uploadedUrl = await profileService.uploadAvatar(manipResult.uri);
                 setAvatarUrl(uploadedUrl);
                 Alert.alert('Success', 'Profile photo updated!');
             } catch {
@@ -82,14 +89,21 @@ export default function EditProfileScreen() {
             </View>
             {/* Profile Image */}
             <View style={styles.imageContainer}>
-                <Image
-                    source={
-                        avatarUrl
-                            ? { uri: avatarUrl }
-                            : require('../assets/images/avatar.png')
-                    }
-                    style={styles.profileImage}
-                />
+                <TouchableOpacity onPress={pickImage} disabled={loading}>
+                    <Image
+                        source={
+                            avatarUrl
+                                ? { uri: avatarUrl }
+                                : require('../assets/images/avatar.png')
+                        }
+                        style={styles.profileImage}
+                    />
+                    {loading && (
+                        <View style={styles.imageOverlay}>
+                            <ActivityIndicator size="small" color="#fff" />
+                        </View>
+                    )}
+                </TouchableOpacity>
             </View>
             <CustomText style={styles.changePhoto}>Change Photo</CustomText>
             <CustomText style={styles.changePhotoSub}>Add or change your photo to personalize your experience</CustomText>
@@ -219,5 +233,16 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 18,
         fontWeight: '700',
+    },
+    imageOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 }); 

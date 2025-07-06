@@ -5,7 +5,9 @@ const API_BASE_URL = 'https://familycooksclean.onrender.com'; // Update if neede
 export const profileService = {
   async getProfile() {
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('ProfileService session:', session);
     if (!session) throw new Error('No session found');
+    console.log('ProfileService access token:', session.access_token);
     const response = await fetch(`${API_BASE_URL}/profiles`, {
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
@@ -36,11 +38,13 @@ export const profileService = {
     if (!session) throw new Error('No session found');
     const response = await fetch(imageUri);
     const blob = await response.blob();
+    console.log('uploadAvatar blob:', blob);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
           const base64Data = reader.result.split(',')[1];
+          console.log('uploadAvatar base64Data length:', base64Data.length);
           const fileName = `avatar_${Date.now()}.jpg`;
           const contentType = blob.type || 'image/jpeg';
           const uploadResponse = await fetch(`${API_BASE_URL}/profiles/upload-avatar`, {
@@ -55,7 +59,12 @@ export const profileService = {
               contentType,
             }),
           });
-          if (!uploadResponse.ok) throw new Error('Failed to upload avatar');
+          if (!uploadResponse.ok) {
+            const errorBody = await uploadResponse.text();
+            console.log('uploadAvatar uploadResponse status:', uploadResponse.status);
+            console.log('uploadAvatar uploadResponse body:', errorBody);
+            throw new Error('Failed to upload avatar');
+          }
           const result = await uploadResponse.json();
           resolve(result.avatar_url);
         } catch (error) {
