@@ -73,6 +73,7 @@ export default function RecipeDetailScreen() {
   const [aiResult, setAiResult] = useState<any>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [messageHasSavedRecipe, setMessageHasSavedRecipe] = useState<boolean | null>(null);
 
   useEffect(() => {
     console.log('params', params);
@@ -120,7 +121,21 @@ export default function RecipeDetailScreen() {
       });
       setLoading(false);
     }
-  }, [params.id, isAIRecipe, userId]);
+  }, [params.id, userId]);
+
+  // Check if the message has a saved recipe
+  useEffect(() => {
+    console.log('Message saved recipe check:', {
+      message_id: params.message_id,
+      saved_recipe_id: params.saved_recipe_id,
+      hasSavedRecipe: !!params.saved_recipe_id
+    });
+    if (params.message_id) {
+      setMessageHasSavedRecipe(!!params.saved_recipe_id);
+    } else {
+      setMessageHasSavedRecipe(null);
+    }
+  }, [params.message_id, params.saved_recipe_id]);
 
   function ensureArray(val: any, fallback: string[]): string[] {
     if (Array.isArray(val)) {
@@ -430,9 +445,10 @@ export default function RecipeDetailScreen() {
               hasRecipe: !!recipe,
               recipeId: recipe?.id,
               hasUserId: !!userId,
-              shouldShow: !recipe?.id && !!userId
+              messageHasSavedRecipe: messageHasSavedRecipe,
+              shouldShow: !recipe?.id && !!userId && messageHasSavedRecipe !== true
             });
-            return !recipe?.id && userId;
+            return !recipe?.id && userId && messageHasSavedRecipe !== true;
           })() && (
             <TouchableOpacity
               style={{ backgroundColor: saveStatus === 'saving' ? '#B0B0B0' : '#E2B36A', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginTop: 16, marginBottom: 8 }}

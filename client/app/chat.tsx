@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Image, ScrollView, TextInput, Activ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomText from '../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 
 // Helper to extract JSON from a string (handles code blocks and extra text)
@@ -99,7 +99,7 @@ export default function ChatScreen() {
         });
     }, []);
 
-    // Fetch messages for this chat on mount
+    // Fetch messages for this chat on mount and when returning to chat
     useEffect(() => {
         if (!currentChatId) {
             setAllMessages([]);
@@ -120,7 +120,8 @@ export default function ChatScreen() {
                                 role: 'assistant', 
                                 content: '[RECIPE_CARD]', 
                                 recipe: maybeJson,
-                                id: msg.id // Preserve the message ID
+                                id: msg.id, // Preserve the message ID
+                                saved_recipe_id: msg.saved_recipe_id // Preserve the saved recipe ID
                             }];
                         } else if (maybeJson && maybeJson.is_recipe === false) {
                             // Prefer 'text', fallback to 'message'
@@ -142,6 +143,49 @@ export default function ChatScreen() {
             })
             .catch(() => setLoading(false));
     }, [currentChatId]);
+
+    // Refresh messages when returning to chat screen
+    useFocusEffect(
+        React.useCallback(() => {
+            if (currentChatId) {
+                console.log('Refreshing messages on focus');
+                fetch(`https://familycooksclean.onrender.com/ai/messages?chat_id=${currentChatId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log('Raw messages from server (focus):', data);
+                        // Transform messages: if assistant message is valid recipe JSON, replace with [RECIPE_CARD]
+                        const transformed = data.flatMap((msg: any) => {
+                            if (msg.role === 'assistant') {
+                                const maybeJson = extractJsonFromString(msg.content);
+                                if (maybeJson && maybeJson.is_recipe) {
+                                    return [{ 
+                                        role: 'assistant', 
+                                        content: '[RECIPE_CARD]', 
+                                        recipe: maybeJson,
+                                        id: msg.id, // Preserve the message ID
+                                        saved_recipe_id: msg.saved_recipe_id // Preserve the saved recipe ID
+                                    }];
+                                } else if (maybeJson && maybeJson.is_recipe === false) {
+                                    // Prefer 'text', fallback to 'message'
+                                    const text = maybeJson.text || maybeJson.message;
+                                    if (text) {
+                                        return [{ 
+                                            role: 'assistant', 
+                                            content: text,
+                                            id: msg.id // Preserve the message ID
+                                        }];
+                                    }
+                                }
+                            }
+                            return [msg];
+                        });
+                        console.log('Transformed messages (focus):', transformed);
+                        setAllMessages(transformed);
+                    })
+                    .catch(() => {});
+            }
+        }, [currentChatId])
+    );
 
     // Animate loading state
     useEffect(() => {
@@ -344,11 +388,13 @@ export default function ChatScreen() {
                     
                     if (msg.content === '[RECIPE_CARD]' && msg.recipe) {
                         console.log('Recipe card message object:', msg);
+                        console.log('Message saved_recipe_id:', msg.saved_recipe_id);
                         console.log('Passing to detail:', {
                             steps: msg.recipe.steps,
                             isArray: Array.isArray(msg.recipe.steps),
                             typeofSteps: typeof msg.recipe.steps,
                             message_id: msg.id,
+                            saved_recipe_id: msg.saved_recipe_id,
                         });
                         return (
                             <TouchableOpacity
@@ -357,7 +403,11 @@ export default function ChatScreen() {
                                 onPress={() => {
                                     // If this recipe has already been saved, navigate to the saved version
                                     if (msg.saved_recipe_id) {
-                                        router.push({ pathname: '/recipe-detail', params: { id: msg.saved_recipe_id, message_id: msg.id } });
+                                        console.log('Navigating to saved recipe:', {
+                                            saved_recipe_id: msg.saved_recipe_id,
+                                            message_id: msg.id
+                                        });
+                                        router.push({ pathname: '/recipe-detail', params: { id: msg.saved_recipe_id, message_id: msg.id, saved_recipe_id: msg.saved_recipe_id } });
                                     } else {
                                         // Otherwise, navigate to the original chat recipe
                                         const params = {
