@@ -1,14 +1,74 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, TextInput, Image, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import CustomText from '../components/CustomText';
+import * as ImagePicker from 'expo-image-picker';
+import { profileService } from '../lib/profileService';
 
 export default function EditProfileScreen() {
     const router = useRouter();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        loadProfile();
+    }, []);
+
+    const loadProfile = async () => {
+        setLoading(true);
+        try {
+            const profile = await profileService.getProfile();
+            setName(profile.name || '');
+            setEmail(profile.email || '');
+            setPhone(profile.phone || '');
+            setAvatarUrl(profile.avatar_url || '');
+        } catch (e) {
+            console.log('Profile load error:', e);
+            Alert.alert('Error', 'Failed to load profile');
+        }
+        setLoading(false);
+    };
+
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!result.canceled && result.assets[0]) {
+            setLoading(true);
+            try {
+                const uploadedUrl = await profileService.uploadAvatar(result.assets[0].uri);
+                setAvatarUrl(uploadedUrl);
+                Alert.alert('Success', 'Profile photo updated!');
+            } catch {
+                Alert.alert('Error', 'Failed to upload image');
+            }
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await profileService.updateProfile({
+                name: name.trim(),
+                email: email.trim(),
+                phone: phone.trim(),
+                avatar_url: avatarUrl,
+            });
+            Alert.alert('Success', 'Profile updated!');
+        } catch {
+            Alert.alert('Error', 'Failed to update profile');
+        }
+        setSaving(false);
+    };
 
     return (
         <View style={styles.container}>
@@ -23,7 +83,11 @@ export default function EditProfileScreen() {
             {/* Profile Image */}
             <View style={styles.imageContainer}>
                 <Image
-                    source={require('../assets/images/avatar.png')}
+                    source={
+                        avatarUrl
+                            ? { uri: avatarUrl }
+                            : require('../assets/images/avatar.png')
+                    }
                     style={styles.profileImage}
                 />
             </View>
@@ -57,7 +121,7 @@ export default function EditProfileScreen() {
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
             />
-            <TouchableOpacity style={styles.saveButton}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                 <CustomText style={styles.saveButtonText}>Save Changes</CustomText>
             </TouchableOpacity>
         </View>

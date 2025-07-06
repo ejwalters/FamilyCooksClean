@@ -12,5 +12,8 @@ app.use('/ai', aiRoutes);
 const recipesRoutes = require('./routes/recipes');
 app.use('/recipes', recipesRoutes);
 
+const profilesRoutes = require('./routes/profiles');
+app.use('/profiles', profilesRoutes);
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
