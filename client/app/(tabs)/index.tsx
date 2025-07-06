@@ -46,7 +46,6 @@ export default function HomeScreen() {
     fetch(`https://familycooksclean.onrender.com/recipes/recently-cooked?user_id=${userId}&limit=5`)
       .then(res => res.json())
       .then(data => {
-        console.log('Recently cooked API response:', data);
         const recentlyCookedArray = Array.isArray(data) ? data : [];
         setRecentlyCooked(recentlyCookedArray);
       })

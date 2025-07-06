@@ -158,6 +158,7 @@ router.get('/:id', async (req, res) => {
         .select('*')
         .eq('id', id)
         .single();
+    console.log('Raw database query result:', { data, error });
     if (error) return res.status(500).json({ error: error.message });
     if (!data) return res.status(404).json({ error: 'Recipe not found' });
     
@@ -177,6 +178,7 @@ router.get('/:id', async (req, res) => {
         }
     }
     
+    console.log('Recipe endpoint returning:', data);
     res.json(data);
 });
 

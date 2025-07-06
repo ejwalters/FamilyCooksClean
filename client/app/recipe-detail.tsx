@@ -84,6 +84,8 @@ export default function RecipeDetailScreen() {
       fetch(url)
         .then(res => res.json())
         .then(data => {
+          console.log('Recipe loaded from database:', data);
+          console.log('Recipe ID:', data.id);
           setRecipe(data);
           setFavorited(data.is_favorited || false);
           setLoading(false);
@@ -313,28 +315,37 @@ export default function RecipeDetailScreen() {
       if (!response.ok) throw new Error('Failed to save recipe');
       setSaveStatus('success');
       const savedRecipe = await response.json();
-      if (params.message_id) {
-        try {
-          await fetch('https://familycooksclean.onrender.com/recipes/save-message-recipe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message_id: params.message_id,
-              saved_recipe_id: savedRecipe.id,
-            }),
-          });
-        } catch (e) {
-          console.error('Failed to update message with saved_recipe_id', e);
-        }
-      }
+                        if (params.message_id) {
+                    console.log('About to call save-message-recipe with:', {
+                      message_id: params.message_id,
+                      saved_recipe_id: savedRecipe.id,
+                    });
+                    try {
+                      const response = await fetch('https://familycooksclean.onrender.com/recipes/save-message-recipe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          message_id: params.message_id,
+                          saved_recipe_id: savedRecipe.id,
+                        }),
+                      });
+                      console.log('save-message-recipe response status:', response.status);
+                      if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('save-message-recipe error:', errorText);
+                      } else {
+                        console.log('save-message-recipe success');
+                      }
+                    } catch (e) {
+                      console.error('Failed to update message with saved_recipe_id', e);
+                    }
+                  }
       router.replace({ pathname: '/recipe-detail', params: { id: savedRecipe.id, isAI: '1' } });
     } catch (err: any) {
       setSaveStatus('error');
       alert(err.message || 'Failed to save recipe');
     }
   }
-
-  console.log('Final steps for rendering:', steps);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F6F9' }}>
@@ -414,7 +425,15 @@ export default function RecipeDetailScreen() {
               </View>
             );
           })}
-          {!recipe?.id && userId && (
+          {(() => {
+            console.log('Save button condition check:', {
+              hasRecipe: !!recipe,
+              recipeId: recipe?.id,
+              hasUserId: !!userId,
+              shouldShow: !recipe?.id && !!userId
+            });
+            return !recipe?.id && userId;
+          })() && (
             <TouchableOpacity
               style={{ backgroundColor: saveStatus === 'saving' ? '#B0B0B0' : '#E2B36A', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginTop: 16, marginBottom: 8 }}
               disabled={saveStatus === 'saving'}
@@ -450,7 +469,35 @@ export default function RecipeDetailScreen() {
                   }
                   const savedRecipe = await response.json();
                   setSaveStatus('success');
-                  router.replace({ pathname: '/recipe-detail', params: { id: savedRecipe.id, isAI: '1' } });
+                  console.log('PARAMS', params.message_id);
+                  // Update message with saved recipe ID if coming from chat
+                  if (params.message_id) {
+                    console.log('About to call save-message-recipe with:', {
+                      message_id: params.message_id,
+                      saved_recipe_id: savedRecipe.id,
+                    });
+                    try {
+                      const updateResponse = await fetch('https://familycooksclean.onrender.com/recipes/save-message-recipe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          message_id: params.message_id,
+                          saved_recipe_id: savedRecipe.id,
+                        }),
+                      });
+                      console.log('save-message-recipe response status:', updateResponse.status);
+                      if (!updateResponse.ok) {
+                        const errorText = await updateResponse.text();
+                        console.error('save-message-recipe error:', errorText);
+                      } else {
+                        console.log('save-message-recipe success');
+                      }
+                    } catch (e) {
+                      console.error('Failed to update message with saved_recipe_id', e);
+                    }
+                  }
+                  
+                  router.replace({ pathname: '/recipe-detail', params: { id: savedRecipe.id, isAI: '1', message_id: params.message_id } });
                 } catch (err: any) {
                   setSaveStatus('error');
                   setSaveError(err.message || 'Failed to save recipe');
@@ -655,7 +702,7 @@ export default function RecipeDetailScreen() {
                       const savedRecipe = await response.json();
                       setSaveStatus('success');
                       setShowChefSheet(false);
-                      router.replace({ pathname: '/recipe-detail', params: { id: savedRecipe.id, isAI: '1' } });
+                      router.replace({ pathname: '/recipe-detail', params: { id: savedRecipe.id, isAI: '1', message_id: params.message_id } });
                     } catch (err: any) {
                       setSaveStatus('error');
                       setSaveError(err.message || 'Failed to save recipe');

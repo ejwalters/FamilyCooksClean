@@ -172,6 +172,8 @@ router.get('/messages', async (req, res) => {
         .order('created_at', { ascending: true });
 
     if (error) return res.status(500).json({ error: error.message });
+    
+    console.log('Messages endpoint returning:', data);
     res.json(data);
 });
 

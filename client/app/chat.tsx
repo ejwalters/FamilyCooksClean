@@ -110,22 +110,33 @@ export default function ChatScreen() {
         fetch(`https://familycooksclean.onrender.com/ai/messages?chat_id=${currentChatId}`)
             .then(res => res.json())
             .then(data => {
+                console.log('Raw messages from server:', data);
                 // Transform messages: if assistant message is valid recipe JSON, replace with [RECIPE_CARD]
                 const transformed = data.flatMap((msg: any) => {
                     if (msg.role === 'assistant') {
                         const maybeJson = extractJsonFromString(msg.content);
                         if (maybeJson && maybeJson.is_recipe) {
-                            return [{ role: 'assistant', content: '[RECIPE_CARD]', recipe: maybeJson }];
+                            return [{ 
+                                role: 'assistant', 
+                                content: '[RECIPE_CARD]', 
+                                recipe: maybeJson,
+                                id: msg.id // Preserve the message ID
+                            }];
                         } else if (maybeJson && maybeJson.is_recipe === false) {
                             // Prefer 'text', fallback to 'message'
                             const text = maybeJson.text || maybeJson.message;
                             if (text) {
-                                return [{ role: 'assistant', content: text }];
+                                return [{ 
+                                    role: 'assistant', 
+                                    content: text,
+                                    id: msg.id // Preserve the message ID
+                                }];
                             }
                         }
                     }
                     return [msg];
                 });
+                console.log('Transformed messages:', transformed);
                 setAllMessages(transformed);
                 setLoading(false);
             })
@@ -332,26 +343,34 @@ export default function ChatScreen() {
                     }
                     
                     if (msg.content === '[RECIPE_CARD]' && msg.recipe) {
+                        console.log('Recipe card message object:', msg);
                         console.log('Passing to detail:', {
                             steps: msg.recipe.steps,
                             isArray: Array.isArray(msg.recipe.steps),
                             typeofSteps: typeof msg.recipe.steps,
+                            message_id: msg.id,
                         });
                         return (
                             <TouchableOpacity
                                 key={idx}
                                 style={styles.recipeCard}
                                 onPress={() => {
-                                    const params = {
-                                        ...msg.recipe,
-                                        title: msg.recipe.name,
-                                        isAI: '1',
-                                        tags: JSON.stringify(msg.recipe.tags),
-                                        ingredients: JSON.stringify(msg.recipe.ingredients),
-                                        steps: JSON.stringify(msg.recipe.steps),
-                                        message_id: msg.id,
-                                    };
-                                    router.push({ pathname: '/recipe-detail', params });
+                                    // If this recipe has already been saved, navigate to the saved version
+                                    if (msg.saved_recipe_id) {
+                                        router.push({ pathname: '/recipe-detail', params: { id: msg.saved_recipe_id, message_id: msg.id } });
+                                    } else {
+                                        // Otherwise, navigate to the original chat recipe
+                                        const params = {
+                                            ...msg.recipe,
+                                            title: msg.recipe.name,
+                                            isAI: '1',
+                                            tags: JSON.stringify(msg.recipe.tags),
+                                            ingredients: JSON.stringify(msg.recipe.ingredients),
+                                            steps: JSON.stringify(msg.recipe.steps),
+                                            message_id: msg.id,
+                                        };
+                                        router.push({ pathname: '/recipe-detail', params });
+                                    }
                                 }}
                             >
                                 <View style={{ flex: 1 }}>
