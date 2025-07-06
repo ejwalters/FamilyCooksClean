@@ -21,7 +21,7 @@ export default function RecipeDetailScreen() {
   const [checkedIngredients, setCheckedIngredients] = useState<boolean[]>([]);
   const [completedSteps, setCompletedSteps] = useState<boolean[]>([]);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [showTimerOptions, setShowTimerOptions] = useState(false);
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [showChefSheet, setShowChefSheet] = useState(false);
   const chefSheetAnim = useRef(new Animated.Value(0)).current;
@@ -274,29 +274,63 @@ export default function RecipeDetailScreen() {
 
   // Handler for start cooking
   const handleStartCooking = async () => {
-    if (!userId || !recipe?.id) return;
-    
-    try {
-      // Call the server to record the cooking start
-      const res = await fetch('https://familycooksclean.onrender.com/recipes/start-cooking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, recipe_id: recipe.id }),
-      });
+    if (!cooking) {
+      // Starting cooking
+      if (!userId || !recipe?.id) return;
       
-      if (!res.ok) {
-        console.error('Failed to record cooking start');
+      try {
+        // Call the server to record the cooking start
+        const res = await fetch('https://familycooksclean.onrender.com/recipes/start-cooking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, recipe_id: recipe.id }),
+        });
+        
+        if (!res.ok) {
+          console.error('Failed to record cooking start');
+          // Continue with cooking even if server call fails
+        }
+      } catch (err) {
+        console.error('Error recording cooking start:', err);
         // Continue with cooking even if server call fails
       }
-    } catch (err) {
-      console.error('Error recording cooking start:', err);
-      // Continue with cooking even if server call fails
+      
+      // Start the cooking timer
+      setCooking(true);
+      setTimerRunning(true);
+      setTimer(0);
+    } else {
+      // Stopping cooking
+      setCooking(false);
+      setTimerRunning(false);
+      
+      // Update the recently cooked table
+      if (userId && recipe?.id) {
+        try {
+          console.log('Calling update-recently-cooked with:', { user_id: userId, recipe_id: recipe.id });
+          const res = await fetch('https://familycooksclean.onrender.com/recipes/update-recently-cooked', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              user_id: userId, 
+              recipe_id: recipe.id
+            }),
+          });
+          
+          console.log('update-recently-cooked response status:', res.status);
+          
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error('Failed to update recently cooked:', errorText);
+          } else {
+            const responseData = await res.json();
+            console.log('Successfully updated recently cooked:', responseData);
+          }
+        } catch (err) {
+          console.error('Error updating recently cooked:', err);
+        }
+      }
     }
-    
-    // Start the cooking timer regardless of server response
-    setCooking(true);
-    setTimerRunning(true);
-    setTimer(0);
   };
 
   // Show loading spinner while fetching
@@ -391,6 +425,16 @@ export default function RecipeDetailScreen() {
               <View key={idx} style={styles.tag}><CustomText style={styles.tagText}>{tag}</CustomText></View>
             ))}
           </View>
+          {/* Cooking Timer or Button */}
+          {!cooking ? (
+            <TouchableOpacity style={styles.cookButton} onPress={handleStartCooking}>
+              <CustomText style={styles.cookButtonText}>Start Cooking</CustomText>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.cookButton} onPress={handleStartCooking}>
+              <CustomText style={styles.cookButtonText}>Stop Cooking ({formatTime(timer)})</CustomText>
+            </TouchableOpacity>
+          )}
           <CustomText style={styles.sectionTitle}>Ingredients</CustomText>
           {ingredients.map((ing: string, idx: number) => (
             <TouchableOpacity
@@ -420,23 +464,6 @@ export default function RecipeDetailScreen() {
             return (
               <View key={idx} style={styles.stepRow}>
                 <CustomText style={[styles.stepText, completedSteps[idx] && { textDecorationLine: 'line-through', color: '#A0A0A0' }]}>{idx + 1}. {step}</CustomText>
-                <Animated.View style={[styles.animatedStepButton, { backgroundColor: bgColor, opacity: cooking ? 1 : 0.5 }]}>
-                  <TouchableOpacity
-                    style={styles.stepButtonTouchable}
-                    onPress={() => cooking && toggleStep(idx)}
-                    activeOpacity={cooking ? 0.85 : 1}
-                    disabled={!cooking}
-                  >
-                    {completedSteps[idx] ? (
-                      <>
-                        <Ionicons name="checkmark" size={20} color="#fff" style={{ marginRight: 6 }} />
-                        <CustomText style={styles.stepButtonTextComplete}>Complete</CustomText>
-                      </>
-                    ) : (
-                      <CustomText style={styles.stepButtonTextStart}>Start</CustomText>
-                    )}
-                  </TouchableOpacity>
-                </Animated.View>
               </View>
             );
           })}
@@ -733,22 +760,6 @@ export default function RecipeDetailScreen() {
             {saveError && (
               <CustomText style={{ color: '#E4576A', marginTop: 8, textAlign: 'center' }}>{saveError}</CustomText>
             )}
-            {/* Cooking Timer or Button */}
-            {!cooking ? (
-              <TouchableOpacity style={styles.cookButton} onPress={handleStartCooking}>
-                <CustomText style={styles.cookButtonText}>Start Cooking</CustomText>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.timerBarRow}>
-                <Animated.View style={[styles.timerBox, { transform: [{ scale: timerRunning ? pulseAnim : 1 }] }]}>
-                  <CustomText style={styles.timerText}>{formatTime(timer)}</CustomText>
-                  {!timerRunning && <Ionicons name="pause-circle" size={22} color="#fff" style={{ marginLeft: 4 }} />}
-                </Animated.View>
-                <TouchableOpacity style={styles.timerOptionsButton} onPress={() => setShowTimerOptions(true)}>
-                  <Ionicons name="ellipsis-horizontal" size={26} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            )}
             {isAIRecipe && saveStatus !== 'success' && (
               <TouchableOpacity style={styles.saveAIButton} onPress={handleSaveAIRecipe} disabled={saveStatus === 'saving'}>
                 <CustomText style={styles.saveAIButtonText}>
@@ -759,42 +770,7 @@ export default function RecipeDetailScreen() {
             {saveStatus === 'success' && (
               <CustomText style={[styles.saveAIButtonText, { color: '#7BA892', textAlign: 'center', marginTop: 8 }]}>Recipe saved!</CustomText>
             )}
-            {/* Timer Options Modal */}
-            <Modal
-              visible={showTimerOptions}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setShowTimerOptions(false)}
-            >
-              <View style={styles.modalOverlay}>
-                <Animated.View style={styles.modalContent}>
-                  {timerRunning ? (
-                    <TouchableOpacity style={[styles.modalButton, styles.modalButtonGold]} onPress={() => { setTimerRunning(false); setShowTimerOptions(false); }}>
-                      <Ionicons name="pause" size={22} color="#fff" style={{ marginRight: 8 }} />
-                      <CustomText style={styles.modalButtonText}>Pause</CustomText>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity style={[styles.modalButton, styles.modalButtonGold]} onPress={() => { setTimerRunning(true); setShowTimerOptions(false); }}>
-                      <Ionicons name="play" size={22} color="#fff" style={{ marginRight: 8 }} />
-                      <CustomText style={styles.modalButtonText}>Resume</CustomText>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity style={[styles.modalButton, styles.modalButtonRed]} onPress={() => {
-                    setCooking(false);
-                    setTimerRunning(false);
-                    setTimer(0);
-                    setShowTimerOptions(false);
-                  }}>
-                    <Ionicons name="stop" size={22} color="#fff" style={{ marginRight: 8 }} />
-                    <CustomText style={styles.modalButtonText}>End Recipe</CustomText>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.modalButton, styles.modalButtonGray]} onPress={() => setShowTimerOptions(false)}>
-                    <Ionicons name="close" size={22} color="#6C757D" style={{ marginRight: 8 }} />
-                    <CustomText style={[styles.modalButtonText, { color: '#6C757D' }]}>Cancel</CustomText>
-                  </TouchableOpacity>
-                </Animated.View>
-              </View>
-            </Modal>
+
           </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
@@ -889,73 +865,31 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 24,
   },
-  askChefButtonText: {
+    askChefButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
   },
-  timerBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 18,
-    justifyContent: 'center',
-  },
-  timerBox: {
+  saveAIButton: {
     backgroundColor: '#E2B36A',
-    borderRadius: 24,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 60,
-    minWidth: 140,
-    flexDirection: 'row',
-    shadowColor: '#E2B36A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 8,
-    paddingHorizontal: 36,
+    height: 48,
+    marginVertical: 18,
   },
-  timerText: {
+  saveAIButtonText: {
     color: '#fff',
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '700',
   },
-  pausedText: {
-    color: '#fff',
-    fontSize: 14,
-    fontStyle: 'italic',
-    marginLeft: 8,
-  },
-  timerOptionsButton: {
-    marginLeft: 18,
-    backgroundColor: 'rgba(226,179,106,0.85)',
-    borderRadius: 22,
+  chefSheetCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: '#F1F6F9',
+    borderRadius: 20,
     padding: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
-    width: 44,
-    shadowColor: '#E2B36A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 28,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    width: 300,
-    alignItems: 'stretch',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
@@ -1166,26 +1100,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  chefSheetCloseButton: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    zIndex: 10,
-    padding: 4,
-  },
-  saveAIButton: {
-    backgroundColor: '#8CBEC7',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
-    marginVertical: 8,
-  },
-  saveAIButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
+
   filterChip: {
     backgroundColor: '#7BA892',
     borderRadius: 22,

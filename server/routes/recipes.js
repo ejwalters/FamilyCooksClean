@@ -232,6 +232,45 @@ router.post('/start-cooking', async (req, res) => {
     res.json({ success: true });
 });
 
+// POST /recipes/update-recently-cooked
+router.post('/update-recently-cooked', async (req, res) => {
+    const { user_id, recipe_id } = req.body;
+    console.log('update-recently-cooked called with:', { user_id, recipe_id });
+    
+    if (!user_id || !recipe_id) {
+        console.log('Missing user_id or recipe_id');
+        return res.status(400).json({ error: 'Missing user_id or recipe_id' });
+    }
+
+    try {
+        // Upsert the recently_cooked record timestamp (insert if doesn't exist, update if it does)
+        const { data, error } = await supabase
+            .from('recently_cooked')
+            .upsert([{ 
+                user_id, 
+                recipe_id, 
+                cooked_at: new Date().toISOString()
+            }], { 
+                onConflict: 'user_id,recipe_id',
+                ignoreDuplicates: false 
+            })
+            .select();
+
+        console.log('Supabase update result:', { data, error });
+        
+        if (error) {
+            console.log('Supabase error:', error);
+            return res.status(500).json({ error: error.message });
+        }
+        
+        console.log('Successfully updated recently_cooked for user:', user_id, 'recipe:', recipe_id);
+        res.json({ success: true, data });
+    } catch (err) {
+        console.log('Unexpected error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /recipes/save-message-recipe
 router.post('/save-message-recipe', async (req, res) => {
     const { message_id, saved_recipe_id } = req.body;
