@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
+import { profileService } from '../../lib/profileService';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -18,12 +19,26 @@ export default function HomeScreen() {
   const [favorites, setFavorites] = useState<any[]>([]);
   const [recentlyCooked, setRecentlyCooked] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{ avatar_url?: string } | null>(null);
 
   // Fetch user ID on mount
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) setUserId(data.user.id);
     });
+  }, []);
+
+  // Fetch profile on mount
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profileData = await profileService.getProfile();
+        setProfile(profileData);
+      } catch (e) {
+        console.log('HomeScreen profile load error:', e);
+      }
+    };
+    loadProfile();
   }, []);
 
   // Fetch favorites function
@@ -153,7 +168,11 @@ export default function HomeScreen() {
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Image
-              source={require('../../assets/images/avatar.png')}
+              source={
+                profile?.avatar_url
+                  ? { uri: profile.avatar_url }
+                  : require('../../assets/images/avatar.png')
+              }
               style={styles.avatar}
             />
             <CustomText style={styles.logoText}>LOGO</CustomText>

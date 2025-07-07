@@ -4,9 +4,26 @@ import { Ionicons } from '@expo/vector-icons';
 import CustomText from '../../components/CustomText';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { profileService } from '../../lib/profileService';
 
 export default function ProfileScreen() {
     const router = useRouter();
+    const [profile, setProfile] = React.useState<{ avatar_url?: string; name?: string; email?: string } | null>(null);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        const loadProfile = async () => {
+            setLoading(true);
+            try {
+                const profileData = await profileService.getProfile();
+                setProfile(profileData);
+            } catch (e) {
+                console.log('Profile load error:', e);
+            }
+            setLoading(false);
+        };
+        loadProfile();
+    }, []);
 
     async function handleSignOut() {
         const { error } = await supabase.auth.signOut();
@@ -27,12 +44,16 @@ export default function ProfileScreen() {
             {/* Profile Info */}
             <View style={styles.profileInfo}>
                 <Image
-                    source={require('../../assets/images/avatar.png')}
+                    source={
+                        profile?.avatar_url
+                            ? { uri: profile.avatar_url }
+                            : require('../../assets/images/avatar.png')
+                    }
                     style={styles.avatar}
                 />
                 <View>
-                    <CustomText style={styles.name}>Eric Walters</CustomText>
-                    <CustomText style={styles.email}>ejwalters24@gmail.com</CustomText>
+                    <CustomText style={styles.name}>{profile?.name || 'No name set'}</CustomText>
+                    <CustomText style={styles.email}>{profile?.email || 'No email set'}</CustomText>
                 </View>
             </View>
 
