@@ -30,6 +30,21 @@ router.post('/chat', async (req, res) => {
         chatId = chat.id;
     }
 
+    // 1.5. Fetch user's dietary preferences
+    let dietaryPreferences = '';
+    try {
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('dietary_preferences')
+            .eq('id', user_id)
+            .single();
+        if (!profileError && profile && profile.dietary_preferences) {
+            dietaryPreferences = profile.dietary_preferences;
+        }
+    } catch (e) {
+        // Ignore, fallback to empty
+    }
+
     // 2. Insert user message
     const { error: userMsgError } = await supabase
         .from('messages')
@@ -50,7 +65,8 @@ router.post('/chat', async (req, res) => {
         const systemPrompt = {
             role: 'system',
             content: `
-You are an AI chef assistant. If the user asks for a recipe, always respond with a JSON object containing the following fields:
+You are an AI chef assistant. The user has the following dietary preferences and restrictions: ${dietaryPreferences || 'None provided'}.
+If the user asks for a recipe, always respond with a JSON object containing the following fields:
 - name (string)
 - time (string, e.g. "30 min")
 - tags (array of strings, e.g. ["Kid Friendly", "Vegan"])
