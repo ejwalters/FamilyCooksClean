@@ -16,6 +16,7 @@ export default function ProfileScreen() {
             setLoading(true);
             try {
                 const profileData = await profileService.getProfile();
+                console.log('Profile data loaded:', profileData);
                 setProfile(profileData);
             } catch (e) {
                 console.log('Profile load error:', e);
@@ -52,8 +53,17 @@ export default function ProfileScreen() {
                     style={styles.avatar}
                 />
                 <View>
-                    <CustomText style={styles.name}>{profile?.name || 'No name set'}</CustomText>
-                    <CustomText style={styles.email}>{profile?.email || 'No email set'}</CustomText>
+                    {loading ? (
+                        <>
+                            <CustomText style={styles.name}>Loading...</CustomText>
+                            <CustomText style={styles.email}>Loading...</CustomText>
+                        </>
+                    ) : (
+                        <>
+                            <CustomText style={styles.name}>{profile?.name || 'No name set'}</CustomText>
+                            <CustomText style={styles.email}>{profile?.email || 'No email set'}</CustomText>
+                        </>
+                    )}
                 </View>
             </View>
 

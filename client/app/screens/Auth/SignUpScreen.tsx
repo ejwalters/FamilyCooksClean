@@ -22,7 +22,15 @@ const SignUpScreen = () => {
     const router = useRouter();
 
     const handleCreateAccount = async () => {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ 
+            email, 
+            password,
+            options: {
+                data: {
+                    full_name: fullName
+                }
+            }
+        });
         if (error) {
             Alert.alert('Sign Up Failed', error.message);
         } else {

@@ -14,7 +14,11 @@ export const profileService = {
         'Content-Type': 'application/json',
       },
     });
-    if (!response.ok) throw new Error('Failed to fetch profile');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log('Get profile error:', response.status, errorText);
+      throw new Error('Failed to fetch profile');
+    }
     return await response.json();
   },
 
@@ -74,5 +78,11 @@ export const profileService = {
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+  },
+
+  async getCurrentUser() {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) throw new Error('Failed to get current user');
+    return user;
   },
 };

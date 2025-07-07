@@ -39,6 +39,8 @@ router.get('/', authenticateUser, async (req, res) => {
   }
 });
 
+
+
 // Update profile
 router.put('/', authenticateUser, async (req, res) => {
   try {
