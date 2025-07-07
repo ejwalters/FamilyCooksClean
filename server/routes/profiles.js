@@ -22,26 +22,45 @@ const authenticateUser = async (req, res, next) => {
 
 // Get profile
 router.get('/', authenticateUser, async (req, res) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', req.user.id)
-    .single();
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
 });
 
 // Update profile
 router.put('/', authenticateUser, async (req, res) => {
-  const { name, email, phone, avatar_url } = req.body;
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ name, email, phone, avatar_url })
-    .eq('id', req.user.id)
-    .select()
-    .single();
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  try {
+    const updateFields = { updated_at: new Date().toISOString() };
+    ['name', 'email', 'phone', 'avatar_url', 'dietary_preferences'].forEach(field => {
+      if (req.body[field] !== undefined) updateFields[field] = req.body[field];
+    });
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updateFields)
+      .eq('id', req.user.id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
 });
 
 // Upload avatar
