@@ -6,6 +6,8 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { profileService } from '../../lib/profileService';
+import HomeScreenV2 from '../../components/experimental/HomeScreenV2';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -20,6 +22,7 @@ export default function HomeScreen() {
   const [recentlyCooked, setRecentlyCooked] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ avatar_url?: string } | null>(null);
+  const [useExperimentalUI, setUseExperimentalUI] = useState(false);
 
   // Fetch user ID on mount
   useEffect(() => {
@@ -162,131 +165,169 @@ export default function HomeScreen() {
   else if (resultCount <= 2) dynamicExpandStyle = styles.searchBarSmallResults;
   else if (resultCount <= 4) dynamicExpandStyle = styles.searchBarMediumResults;
 
+  // Toggle function for experimental UI
+  const toggleUI = () => {
+    setUseExperimentalUI(!useExperimentalUI);
+  };
+
+  // If experimental UI is enabled, render the new version
+  if (useExperimentalUI) {
+    return (
+      <HomeScreenV2
+        search={search}
+        setSearch={setSearch}
+        searchResults={searchResults}
+        searching={searching}
+        searchTouched={searchTouched}
+        setSearchTouched={setSearchTouched}
+        dropdownAnim={dropdownAnim}
+        pulseAnim={pulseAnim}
+        favorites={favorites}
+        recentlyCooked={recentlyCooked}
+        profile={profile}
+        closeDropdown={closeDropdown}
+        hasResults={hasResults}
+        isLoading={isLoading}
+        resultCount={resultCount}
+        dynamicExpandStyle={dynamicExpandStyle}
+        onToggleUI={toggleUI}
+      />
+    );
+  }
+
   return (
     <TouchableWithoutFeedback onPress={closeDropdown} accessible={false}>
-      <View style={{ flex: 1 }}>
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Image
-              source={
-                profile?.avatar_url
-                  ? { uri: profile.avatar_url }
-                  : require('../../assets/images/avatar.png')
-              }
-              style={styles.avatar}
-            />
-            <CustomText style={styles.logoText}>LOGO</CustomText>
-          </View>
-          <View style={[
-            styles.searchBarContainer,
-            (searchTouched && search.length > 0) && dynamicExpandStyle
-          ]}>
-            {/* Input row with search icon */}
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search Recipes"
-                placeholderTextColor="#888"
-                value={search}
-                onChangeText={t => { setSearch(t); setSearchTouched(true); }}
-                autoCorrect={false}
-                autoCapitalize="none"
-                onFocus={() => setSearchTouched(true)}
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F1F6F9' }} edges={['top']}>
+        <View style={{ flex: 1 }}>
+          <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+            <View style={styles.header}>
+              <Image
+                source={
+                  profile?.avatar_url
+                    ? { uri: profile.avatar_url }
+                    : require('../../assets/images/avatar.png')
+                }
+                style={styles.avatar}
               />
-              <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
+              <CustomText style={styles.logoText}>LOGO</CustomText>
+              <TouchableOpacity 
+                style={styles.toggleButton}
+                onPress={toggleUI}
+              >
+                <CustomText style={styles.toggleText}>🎨 Try New UI</CustomText>
+              </TouchableOpacity>
             </View>
-            {/* Results inside the search bar */}
-            {searchTouched && search.length > 0 && (
-              <View style={styles.resultsList}>
-                {searching ? (
-                  <View style={styles.loadingBox}>
-                    <Animated.Image
-                      source={require('../../assets/images/fork-knife.png')}
-                      style={{ width: 40, height: 40, tintColor: '#8CBEC7', transform: [{ scale: pulseAnim }] }}
-                    />
-                    <CustomText style={{ color: '#8CBEC7', marginTop: 8, fontWeight: '700' }}>Searching...</CustomText>
-                  </View>
-                ) : !Array.isArray(searchResults) || searchResults.length === 0 ? (
-                  <CustomText style={{ textAlign: 'center', color: '#6C757D', marginTop: 16, marginBottom: 12 }}>
-                    No results for '{search}'
-                  </CustomText>
-                ) : (
-                  <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
-                    {searchResults.slice(0, 8).map((item, idx) => (
-                      <TouchableOpacity
-                        key={item.id || item.title || idx}
-                        onPress={() => { router.push({ pathname: '/recipe-detail', params: { id: item.id } }); closeDropdown(); }}
-                        style={styles.resultItem}
-                        activeOpacity={0.85}
-                      >
-                        <View style={styles.dropdownItemRow}>
-                          <Image source={require('../../assets/images/fork-knife.png')} style={styles.dropdownIcon} />
-                          <View style={{ flex: 1, marginLeft: 10 }}>
-                            <CustomText style={styles.dropdownItemText}>{item.title}</CustomText>
+            <View style={[
+              styles.searchBarContainer,
+              (searchTouched && search.length > 0) && dynamicExpandStyle
+            ]}>
+              {/* Input row with search icon */}
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search Recipes"
+                  placeholderTextColor="#888"
+                  value={search}
+                  onChangeText={t => { setSearch(t); setSearchTouched(true); }}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  onFocus={() => setSearchTouched(true)}
+                />
+                <Ionicons name="search" size={22} color="#888" style={styles.searchIcon} />
+              </View>
+              {/* Results inside the search bar */}
+              {searchTouched && search.length > 0 && (
+                <View style={styles.resultsList}>
+                  {searching ? (
+                    <View style={styles.loadingBox}>
+                      <Animated.Image
+                        source={require('../../assets/images/fork-knife.png')}
+                        style={{ width: 40, height: 40, tintColor: '#8CBEC7', transform: [{ scale: pulseAnim }] }}
+                      />
+                      <CustomText style={{ color: '#8CBEC7', marginTop: 8, fontWeight: '700' }}>Searching...</CustomText>
+                    </View>
+                  ) : !Array.isArray(searchResults) || searchResults.length === 0 ? (
+                    <CustomText style={{ textAlign: 'center', color: '#6C757D', marginTop: 16, marginBottom: 12 }}>
+                      No results for '{search}'
+                    </CustomText>
+                  ) : (
+                    <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
+                      {searchResults.slice(0, 8).map((item, idx) => (
+                        <TouchableOpacity
+                          key={item.id || item.title || idx}
+                          onPress={() => { router.push({ pathname: '/recipe-detail', params: { id: item.id } }); closeDropdown(); }}
+                          style={styles.resultItem}
+                          activeOpacity={0.85}
+                        >
+                          <View style={styles.dropdownItemRow}>
+                            <Image source={require('../../assets/images/fork-knife.png')} style={styles.dropdownIcon} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                              <CustomText style={styles.dropdownItemText}>{item.title}</CustomText>
+                            </View>
                           </View>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
-            )}
-          </View>
-          <CustomText style={styles.sectionPrompt}>Stuck without a dinner plan?</CustomText>
-          <TouchableOpacity 
-            style={styles.aiChefButton}
-            onPress={() => router.push('/chat')}
-          >
-            <CustomText style={styles.aiChefButtonText}>Ask The AI Chef</CustomText>
-          </TouchableOpacity>
-          <CustomText style={styles.sectionTitle}>Recently Cooked</CustomText>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cardRow}
-            style={styles.cardRowContainer}
-          >
-            {recentlyCooked.length > 0 ? (
-              recentlyCooked.map((item, idx) => (
-                <TouchableOpacity 
-                  key={item.id || idx} 
-                  onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })} 
-                  style={[styles.card, styles.cardBlue]}
-                >
-                  <CustomText style={styles.cardText}>{item.title}</CustomText>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={[styles.card, styles.cardBlue, { opacity: 0.6 }]}>
-                <CustomText style={styles.cardText}>No recipes cooked yet</CustomText>
-              </View>
-            )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              )}
+            </View>
+            <CustomText style={styles.sectionPrompt}>Stuck without a dinner plan?</CustomText>
+            <TouchableOpacity 
+              style={styles.aiChefButton}
+              onPress={() => router.push('/chat')}
+            >
+              <CustomText style={styles.aiChefButtonText}>Ask The AI Chef</CustomText>
+            </TouchableOpacity>
+            <CustomText style={styles.sectionTitle}>Recently Cooked</CustomText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cardRow}
+              style={styles.cardRowContainer}
+            >
+              {recentlyCooked.length > 0 ? (
+                recentlyCooked.map((item, idx) => (
+                  <TouchableOpacity 
+                    key={item.id || idx} 
+                    onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })} 
+                    style={[styles.card, styles.cardBlue]}
+                  >
+                    <CustomText style={styles.cardText}>{item.title}</CustomText>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={[styles.card, styles.cardBlue, { opacity: 0.6 }]}>
+                  <CustomText style={styles.cardText}>No recipes cooked yet</CustomText>
+                </View>
+              )}
+            </ScrollView>
+            <CustomText style={styles.sectionTitle}>Favorites</CustomText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cardRow}
+              style={styles.cardRowContainer}
+            >
+              {favorites.length > 0 ? (
+                favorites.map((item, idx) => (
+                  <TouchableOpacity 
+                    key={item.id || idx} 
+                    onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })} 
+                    style={[styles.card, styles.cardGold]}
+                  >
+                    <CustomText style={styles.cardText}>{item.title}</CustomText>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={[styles.card, styles.cardGold, { opacity: 0.6 }]}>
+                  <CustomText style={styles.cardText}>No favorites yet</CustomText>
+                </View>
+              )}
+            </ScrollView>
           </ScrollView>
-          <CustomText style={styles.sectionTitle}>Favorites</CustomText>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cardRow}
-            style={styles.cardRowContainer}
-          >
-            {favorites.length > 0 ? (
-              favorites.map((item, idx) => (
-                <TouchableOpacity 
-                  key={item.id || idx} 
-                  onPress={() => router.push({ pathname: '/recipe-detail', params: { id: item.id } })} 
-                  style={[styles.card, styles.cardGold]}
-                >
-                  <CustomText style={styles.cardText}>{item.title}</CustomText>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={[styles.card, styles.cardGold, { opacity: 0.6 }]}>
-                <CustomText style={styles.cardText}>No favorites yet</CustomText>
-              </View>
-            )}
-          </ScrollView>
-        </ScrollView>
-      </View>
+        </View>
+      </SafeAreaView>
     </TouchableWithoutFeedback>
   );
 }
@@ -300,7 +341,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 100,
+    justifyContent: 'space-between',
+    marginTop: 0,
     marginBottom: 16,
   },
   avatar: {
@@ -313,6 +355,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: 1,
+    flex: 1,
   },
   searchBarContainer: {
     flexDirection: 'row',
@@ -498,5 +541,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5E5',
     marginHorizontal: 12,
     marginBottom: 2,
+  },
+  toggleButton: {
+    backgroundColor: '#6DA98C',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#fff',
+    marginLeft: 8,
+  },
+  toggleText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
