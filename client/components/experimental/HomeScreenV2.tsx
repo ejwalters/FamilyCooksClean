@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity, Animated, Keyboard, TouchableWithoutFeedback, Platform } from 'react-native';
+import { View, TextInput, StyleSheet, Image, ScrollView, TouchableOpacity, Animated, Keyboard, TouchableWithoutFeedback, Platform, Modal, Pressable, Easing } from 'react-native';
 import CustomText from '../CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import RecentlyCookedModal from './RecentlyCookedModal';
 
 interface HomeScreenV2Props {
   search: string;
@@ -46,6 +47,29 @@ export default function HomeScreenV2({
 }: HomeScreenV2Props) {
   const router = useRouter();
   const userName = profile?.name || 'there';
+
+  // Modal state for Recently Cooked
+  const [showRecentlyCooked, setShowRecentlyCooked] = React.useState(false);
+  const modalAnim = React.useRef(new Animated.Value(0)).current;
+
+  // Animate modal in/out
+  React.useEffect(() => {
+    if (showRecentlyCooked) {
+      Animated.timing(modalAnim, {
+        toValue: 1,
+        duration: 320,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(modalAnim, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.in(Easing.exp),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showRecentlyCooked]);
 
   return (
     <TouchableWithoutFeedback onPress={closeDropdown} accessible={false}>
@@ -133,7 +157,7 @@ export default function HomeScreenV2({
                 <CustomText style={styles.gridCardTitle}>Ask AI Chef</CustomText>
                 <CustomText style={styles.gridCardDesc}>Get instant meal ideas</CustomText>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.gridCard, styles.gridCardPurple]} activeOpacity={0.92}>
+              <TouchableOpacity style={[styles.gridCard, styles.gridCardPurple]} activeOpacity={0.92} onPress={() => setShowRecentlyCooked(true)}>
                 <Ionicons name="flame" size={32} color="#fff" style={styles.gridIcon} />
                 <CustomText style={styles.gridCardTitle}>Recently Cooked</CustomText>
                 <CustomText style={styles.gridCardDesc}>{recentlyCooked.length} recipes</CustomText>
@@ -151,6 +175,14 @@ export default function HomeScreenV2({
             </View>
           </ScrollView>
         </View>
+
+        {/* Recently Cooked Modal Overlay */}
+        <RecentlyCookedModal
+          visible={showRecentlyCooked}
+          onClose={() => setShowRecentlyCooked(false)}
+          recipes={recentlyCooked}
+          router={router}
+        />
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
