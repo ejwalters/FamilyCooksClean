@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Animated, Dimensions, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomText from '../CustomText';
+import * as Animatable from 'react-native-animatable';
 
 const { height, width } = Dimensions.get('window');
 
@@ -77,12 +78,21 @@ export default function RecentlyCookedModal({ visible, onClose, recipes, router 
           <CustomText style={styles.emptyText}>No recently cooked recipes yet.</CustomText>
         ) : (
           <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
-            {recipes.map((recipe: any, idx: number) => {
-              // No favorite field in data, so always outline
-              return (
+            {recipes.map((recipe: any, idx: number) => (
+              <Animatable.View
+                key={recipe.id || idx}
+                animation={{
+                  from: { opacity: 0, translateY: 20 },
+                  to: { opacity: 1, translateY: 0 },
+                }}
+                duration={400}
+                delay={idx * 100}
+                easing="ease-out"
+                useNativeDriver
+                style={{ width: '100%' }}
+              >
                 <TouchableOpacity
-                  key={recipe.id || idx}
-                  style={styles.recipeRow}
+                  style={[styles.recipeRow, { width: '100%' }]}
                   activeOpacity={0.88}
                   onPress={() => router.push({ pathname: '/recipe-detail', params: { id: recipe.id } })}
                 >
@@ -114,8 +124,8 @@ export default function RecentlyCookedModal({ visible, onClose, recipes, router 
                     style={styles.recipeListHeart}
                   />
                 </TouchableOpacity>
-              );
-            })}
+              </Animatable.View>
+            ))}
           </ScrollView>
         )}
       </Animated.View>

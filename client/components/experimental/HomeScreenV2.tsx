@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RecentlyCookedModal from './RecentlyCookedModal';
 import Favorites from './Favorites';
+import ContextualSheet, { OriginRect } from './ContextualSheet';
 
 interface HomeScreenV2Props {
   search: string;
@@ -52,8 +53,13 @@ export default function HomeScreenV2({
   // Modal state for Recently Cooked
   const [showRecentlyCooked, setShowRecentlyCooked] = React.useState(false);
   const [showFavorites, setShowFavorites] = React.useState(false);
+  const [showContextualFavorites, setShowContextualFavorites] = React.useState(false);
+  const [favoritesOrigin, setFavoritesOrigin] = React.useState<OriginRect | null>(null);
+  const favoritesTileRef = React.useRef<any>(null);
   // Debug: log favorites array
   console.log('Favorites array:', favorites);
+  // Debug: log favorites origin
+  console.log('Favorites origin:', favoritesOrigin);
   const modalAnim = React.useRef(new Animated.Value(0)).current;
 
   // Animate modal in/out
@@ -166,7 +172,21 @@ export default function HomeScreenV2({
                 <CustomText style={styles.gridCardTitle}>Recently Cooked</CustomText>
                 <CustomText style={styles.gridCardDesc}>{recentlyCooked.length} recipes</CustomText>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.gridCard, styles.gridCardYellow]} activeOpacity={0.92} onPress={() => { console.log('Opening favorites'); setShowFavorites(true); setShowRecentlyCooked(false); }}>
+              <TouchableOpacity
+                ref={favoritesTileRef}
+                style={[styles.gridCard, styles.gridCardYellow]}
+                activeOpacity={0.92}
+                onPress={() => {
+                  if (favoritesTileRef.current) {
+                    favoritesTileRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+                      setFavoritesOrigin({ x, y, width, height });
+                      setShowContextualFavorites(true);
+                      setShowFavorites(false);
+                      setShowRecentlyCooked(false);
+                    });
+                  }
+                }}
+              >
                 <Ionicons name="heart" size={32} color="#fff" style={styles.gridIcon} />
                 <CustomText style={styles.gridCardTitle}>Favorites</CustomText>
                 <CustomText style={styles.gridCardDesc}>{favorites.length} saved</CustomText>
@@ -187,14 +207,21 @@ export default function HomeScreenV2({
           recipes={recentlyCooked}
           router={router}
         />
-        // Debug: log showFavorites before rendering Favorites
-        console.log('Favorites visible:', showFavorites);
-        <Favorites
-          visible={showFavorites}
-          onClose={() => setShowFavorites(false)}
-          recipes={favorites}
-          router={router}
-        />
+        {/* Only render ContextualSheet if origin is valid */}
+        {(showContextualFavorites && favoritesOrigin && favoritesOrigin.width > 0 && favoritesOrigin.height > 0) && (
+          <ContextualSheet
+            visible={showContextualFavorites}
+            onClose={() => setShowContextualFavorites(false)}
+            origin={favoritesOrigin}
+          >
+            <Favorites
+              visible={true}
+              onClose={() => setShowContextualFavorites(false)}
+              recipes={favorites}
+              router={router}
+            />
+          </ContextualSheet>
+        )}
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );

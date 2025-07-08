@@ -46,14 +46,17 @@ export default function HomeScreen() {
 
   // Fetch favorites function
   const fetchFavorites = () => {
+    console.log('Fetching favorites for userId:', userId);
     if (!userId) return;
     fetch(`https://familycooksclean.onrender.com/recipes/favorites?user_id=${userId}`)
       .then(res => res.json())
       .then(data => {
+        console.log('Raw favorites response:', data);
         const favoritesArray = Array.isArray(data) ? data : [];
         setFavorites(favoritesArray);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Error fetching favorites:', err);
         setFavorites([]);
       });
   };
