@@ -4,7 +4,7 @@ import CustomText from '../CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import RecentlyCookedModal from './RecentlyCookedModal';
+import RecentlyCookedSheet from './RecentlyCookedSheet';
 import Favorites from './Favorites';
 import ContextualSheet, { OriginRect } from './ContextualSheet';
 
@@ -56,6 +56,8 @@ export default function HomeScreenV2({
   const [showContextualFavorites, setShowContextualFavorites] = React.useState(false);
   const [favoritesOrigin, setFavoritesOrigin] = React.useState<OriginRect | null>(null);
   const favoritesTileRef = React.useRef<any>(null);
+  const [recentlyCookedOrigin, setRecentlyCookedOrigin] = React.useState<OriginRect | null>(null);
+  const recentlyCookedTileRef = React.useRef<any>(null);
   // Debug: log favorites array
   console.log('Favorites array:', favorites);
   // Debug: log favorites origin
@@ -167,7 +169,21 @@ export default function HomeScreenV2({
                 <CustomText style={styles.gridCardTitle}>Ask AI Chef</CustomText>
                 <CustomText style={styles.gridCardDesc}>Get instant meal ideas</CustomText>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.gridCard, styles.gridCardPurple]} activeOpacity={0.92} onPress={() => setShowRecentlyCooked(true)}>
+              <TouchableOpacity
+                ref={recentlyCookedTileRef}
+                style={[styles.gridCard, styles.gridCardPurple]}
+                activeOpacity={0.92}
+                onPress={() => {
+                  if (recentlyCookedTileRef.current) {
+                    recentlyCookedTileRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+                      setRecentlyCookedOrigin({ x, y, width, height });
+                      setShowRecentlyCooked(true);
+                      setShowContextualFavorites(false);
+                      setShowFavorites(false);
+                    });
+                  }
+                }}
+              >
                 <Ionicons name="flame" size={32} color="#fff" style={styles.gridIcon} />
                 <CustomText style={styles.gridCardTitle}>Recently Cooked</CustomText>
                 <CustomText style={styles.gridCardDesc}>{recentlyCooked.length} recipes</CustomText>
@@ -200,14 +216,21 @@ export default function HomeScreenV2({
           </ScrollView>
         </View>
 
-        {/* Recently Cooked Modal Overlay */}
-        <RecentlyCookedModal
-          visible={showRecentlyCooked}
-          onClose={() => setShowRecentlyCooked(false)}
-          recipes={recentlyCooked}
-          router={router}
-        />
-        {/* Only render ContextualSheet if origin is valid */}
+        {/* ContextualSheet for Recently Cooked */}
+        {(showRecentlyCooked && recentlyCookedOrigin && recentlyCookedOrigin.width > 0 && recentlyCookedOrigin.height > 0) && (
+          <ContextualSheet
+            visible={showRecentlyCooked}
+            onClose={() => setShowRecentlyCooked(false)}
+            origin={recentlyCookedOrigin}
+          >
+            <RecentlyCookedSheet
+              recipes={recentlyCooked}
+              router={router}
+              onClose={() => setShowRecentlyCooked(false)}
+            />
+          </ContextualSheet>
+        )}
+        {/* Only render ContextualSheet for Favorites if origin is valid */}
         {(showContextualFavorites && favoritesOrigin && favoritesOrigin.width > 0 && favoritesOrigin.height > 0) && (
           <ContextualSheet
             visible={showContextualFavorites}
@@ -215,7 +238,6 @@ export default function HomeScreenV2({
             origin={favoritesOrigin}
           >
             <Favorites
-              visible={true}
               onClose={() => setShowContextualFavorites(false)}
               recipes={favorites}
               router={router}
