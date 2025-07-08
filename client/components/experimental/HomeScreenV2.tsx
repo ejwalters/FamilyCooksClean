@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RecentlyCookedModal from './RecentlyCookedModal';
+import Favorites from './Favorites';
 
 interface HomeScreenV2Props {
   search: string;
@@ -50,6 +51,9 @@ export default function HomeScreenV2({
 
   // Modal state for Recently Cooked
   const [showRecentlyCooked, setShowRecentlyCooked] = React.useState(false);
+  const [showFavorites, setShowFavorites] = React.useState(false);
+  // Debug: log favorites array
+  console.log('Favorites array:', favorites);
   const modalAnim = React.useRef(new Animated.Value(0)).current;
 
   // Animate modal in/out
@@ -162,7 +166,7 @@ export default function HomeScreenV2({
                 <CustomText style={styles.gridCardTitle}>Recently Cooked</CustomText>
                 <CustomText style={styles.gridCardDesc}>{recentlyCooked.length} recipes</CustomText>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.gridCard, styles.gridCardYellow]} activeOpacity={0.92}>
+              <TouchableOpacity style={[styles.gridCard, styles.gridCardYellow]} activeOpacity={0.92} onPress={() => { console.log('Opening favorites'); setShowFavorites(true); setShowRecentlyCooked(false); }}>
                 <Ionicons name="heart" size={32} color="#fff" style={styles.gridIcon} />
                 <CustomText style={styles.gridCardTitle}>Favorites</CustomText>
                 <CustomText style={styles.gridCardDesc}>{favorites.length} saved</CustomText>
@@ -181,6 +185,14 @@ export default function HomeScreenV2({
           visible={showRecentlyCooked}
           onClose={() => setShowRecentlyCooked(false)}
           recipes={recentlyCooked}
+          router={router}
+        />
+        // Debug: log showFavorites before rendering Favorites
+        console.log('Favorites visible:', showFavorites);
+        <Favorites
+          visible={showFavorites}
+          onClose={() => setShowFavorites(false)}
+          recipes={favorites}
           router={router}
         />
       </SafeAreaView>
